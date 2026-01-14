@@ -60,7 +60,8 @@ export default function LobbyPage() {
         dispatch(setJoining(false));
       } catch (err) {
         console.error('Join room error:', err);
-        dispatch(setError('Lỗi kết nối'));
+        const errorMsg = err instanceof Error ? err.message : 'Lỗi kết nối';
+        dispatch(setError(`Lỗi: ${errorMsg}`));
         dispatch(setJoining(false));
       }
     };
