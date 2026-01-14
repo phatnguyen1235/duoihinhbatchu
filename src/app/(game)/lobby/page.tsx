@@ -51,13 +51,17 @@ export default function LobbyPage() {
 
         if (!res.ok) {
           dispatch(setError(data.error || 'Lỗi khi tham gia phòng'));
+          dispatch(setJoining(false));
           return;
         }
 
         dispatch(setRoom(data.room));
-        dispatch(setPlayers(data.room.players || []));
-      } catch {
+        dispatch(setPlayers(data.room?.players || []));
+        dispatch(setJoining(false));
+      } catch (err) {
+        console.error('Join room error:', err);
         dispatch(setError('Lỗi kết nối'));
+        dispatch(setJoining(false));
       }
     };
 
