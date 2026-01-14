@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useAppDispatch } from '@/store/hooks';
 import { leaveRoom } from '@/store/slices/roomSlice';
 import { resetGame } from '@/store/slices/gameSlice';
 import { ResultCard } from '@/components/game/ResultCard';
@@ -26,21 +26,22 @@ interface PlayerResult {
 
 export default function ResultPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
-  const room = useAppSelector((state) => state.room.current);
+  const roomId = searchParams.get('roomId');
   const [results, setResults] = useState<PlayerResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!room?.id) {
-      router.push('/lobby');
+    if (!roomId) {
+      router.push('/qr-login');
       return;
     }
 
     const fetchResults = async () => {
       try {
-        const res = await fetch(`/api/game/results?roomId=${room.id}`, {
+        const res = await fetch(`/api/game/results?roomId=${roomId}`, {
           credentials: 'include',
         });
         const data = await res.json();
@@ -59,10 +60,7 @@ export default function ResultPage() {
     };
 
     fetchResults();
-    const timer = setInterval(fetchResults, 3000);
-
-    return () => clearInterval(timer);
-  }, [room?.id, router]);
+  }, [roomId, router]);
 
   const handleBackToHome = () => {
     dispatch(leaveRoom());

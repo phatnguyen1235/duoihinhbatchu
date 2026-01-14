@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { signJWT, setAuthCookie } from '@/lib/auth';
+import { gameService } from '@/server/services/game.service';
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Create new code and allow to join
+    // Create new code
     const qrCode = await prisma.qrCode.create({
       data: {
         code,
@@ -48,14 +49,21 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const response = NextResponse.json({ success: true });
+    // Start game immediately
+    const gameResult = await gameService.startGame(qrCode.id);
+
+    const response = NextResponse.json({ 
+      success: true,
+      roomId: gameResult.room.id,
+    });
     setAuthCookie(response, token, expiresAt);
 
     return response;
   } catch (error) {
     console.error('QR Auth Error:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Lỗi hệ thống';
     return NextResponse.json(
-      { error: 'Lỗi hệ thống' },
+      { error: errorMsg },
       { status: 500 }
     );
   }

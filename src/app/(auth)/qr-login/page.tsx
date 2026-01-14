@@ -34,7 +34,8 @@ export default function QrLoginPage() {
       const data = await res.json();
       
       if (res.ok && data.success) {
-        router.push('/lobby');
+        // Go directly to play page
+        router.push('/play');
         return;
       }
 
@@ -111,7 +112,7 @@ export default function QrLoginPage() {
               });
               const data = await res.json();
               if (res.ok && data.success) {
-                router.push('/lobby');
+                router.push('/play');
               } else {
                 setError(data.error || 'Có lỗi xảy ra');
               }

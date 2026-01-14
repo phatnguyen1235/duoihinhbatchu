@@ -8,11 +8,16 @@ import { Button } from '@/components/ui/button';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { setUserAnswer, setSubmitting, setResult } from '@/store/slices/gameSlice';
 
-export function QuestionDisplay() {
+interface QuestionDisplayProps {
+  roomId?: string | null;
+}
+
+export function QuestionDisplay({ roomId: propRoomId }: QuestionDisplayProps) {
   const dispatch = useAppDispatch();
   const { currentQuestion, userAnswer, isCorrect, correctAnswer, isSubmitting, scoreGained } =
     useAppSelector((state) => state.game);
-  const roomId = useAppSelector((state) => state.room.current?.id);
+  const storeRoomId = useAppSelector((state) => state.room.current?.id);
+  const roomId = propRoomId || storeRoomId;
   const [showHint, setShowHint] = useState(false);
 
   const handleSubmit = async () => {

@@ -11,7 +11,6 @@ import { Badge } from '@/components/ui/badge';
 export default function PlayPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const room = useAppSelector((state) => state.room.current);
   const { currentQuestion, isCorrect, timeRemaining } = useAppSelector((state) => state.game);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -19,59 +18,51 @@ export default function PlayPage() {
   const [totalRounds, setTotalRounds] = useState(5);
   const [score, setScore] = useState(0);
   const [gameFinished, setGameFinished] = useState(false);
-  const [waitingForNextRound, setWaitingForNextRound] = useState(false);
-  const [showResultTime, setShowResultTime] = useState(0); // Countdown to show result
+  const [showResultTime, setShowResultTime] = useState(0);
+  const [roomId, setRoomId] = useState<string | null>(null);
 
-  const fetchQuestion = useCallback(async () => {
-    if (!room?.id) return;
-    
+  // Fetch current game on mount
+  const fetchCurrentGame = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/game/question?roomId=${room.id}`, {
+      const res = await fetch('/api/game/current', {
         credentials: 'include',
       });
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || 'Lỗi khi tải câu hỏi');
+        if (res.status === 401) {
+          router.push('/qr-login');
+          return;
+        }
+        setError(data.error || 'Lỗi khi tải game');
         return;
       }
 
+      setRoomId(data.roomId);
       dispatch(setQuestionTime(data.questionTime || 30));
       dispatch(setQuestion(data.question));
       setCurrentRound(data.currentRound);
       setTotalRounds(data.totalRounds);
       setScore(data.score);
       
-      if (data.hasAnswered) {
-        // Already answered this round, check for game status
-        const roomRes = await fetch(`/api/rooms/${room.id}`, {
-          credentials: 'include',
-        });
-        const roomData = await roomRes.json();
-        if (roomData.room.status === 'FINISHED') {
-          setGameFinished(true);
-        }
+      if (data.gameFinished) {
+        setGameFinished(true);
       }
     } catch {
       setError('Lỗi kết nối');
     } finally {
       setLoading(false);
     }
-  }, [room?.id, dispatch]);
+  }, [dispatch, router]);
 
   useEffect(() => {
-    if (!room?.id) {
-      router.push('/lobby');
-      return;
-    }
-
-    fetchQuestion();
-  }, [room?.id, fetchQuestion, router]);
+    fetchCurrentGame();
+  }, [fetchCurrentGame]);
 
   // Auto-submit when time runs out
   const autoSubmitAnswer = useCallback(async () => {
-    if (!room?.id || isCorrect !== null) return;
+    if (!roomId || isCorrect !== null) return;
     
     try {
       const res = await fetch('/api/game/answer', {
@@ -79,8 +70,8 @@ export default function PlayPage() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          roomId: room.id,
-          answerText: '', // Empty answer - timeout
+          roomId,
+          answerText: '',
         }),
       });
 
@@ -95,7 +86,7 @@ export default function PlayPage() {
     } catch (error) {
       console.error('Auto-submit error:', error);
     }
-  }, [room?.id, isCorrect, dispatch]);
+  }, [roomId, isCorrect, dispatch]);
 
   // Watch for timeout
   useEffect(() => {
@@ -106,75 +97,81 @@ export default function PlayPage() {
 
   // Start countdown when player answers
   useEffect(() => {
-    if (isCorrect !== null && !waitingForNextRound) {
-      setShowResultTime(5); // Show result for 5 seconds
-      setWaitingForNextRound(true);
+    if (isCorrect !== null && showResultTime === 0) {
+      setShowResultTime(3);
     }
-  }, [isCorrect, waitingForNextRound]);
+  }, [isCorrect, showResultTime]);
 
-  // Countdown timer for showing result
+  // Countdown timer for showing result, then load next question
   useEffect(() => {
     if (showResultTime <= 0) return;
 
     const timer = setInterval(() => {
-      setShowResultTime((prev) => prev - 1);
+      setShowResultTime((prev) => {
+        if (prev <= 1) {
+          // Move to next round or finish
+          if (currentRound >= totalRounds) {
+            setGameFinished(true);
+          } else {
+            // Load next question
+            loadNextQuestion();
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [showResultTime]);
+  }, [showResultTime, currentRound, totalRounds]);
 
-  // Poll for round changes when waiting for other players (only after countdown ends)
-  useEffect(() => {
-    if (!room?.id || gameFinished) return;
-    if (waitingForNextRound && showResultTime > 0) return; // Wait for countdown
-
-    const pollInterval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/game/question?roomId=${room.id}`, {
-          credentials: 'include',
-        });
-        const data = await res.json();
-        
-        if (res.ok) {
-          // Check if round changed
-          if (data.currentRound !== currentRound && !data.hasAnswered) {
-            dispatch(resetGame());
-            dispatch(setQuestionTime(data.questionTime || 30));
-            dispatch(setQuestion(data.question));
-            setCurrentRound(data.currentRound);
-            setScore(data.score);
-            setWaitingForNextRound(false);
-            setShowResultTime(0);
-          }
-          
-          // Check if game finished
-          const roomRes = await fetch(`/api/rooms/${room.id}`, {
-            credentials: 'include',
-          });
-          const roomData = await roomRes.json();
-          if (roomData.room.status === 'FINISHED') {
-            setGameFinished(true);
-          }
+  const loadNextQuestion = async () => {
+    if (!roomId) return;
+    
+    dispatch(resetGame());
+    setLoading(true);
+    
+    try {
+      const res = await fetch('/api/game/next', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ roomId }),
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        if (data.gameFinished) {
+          setGameFinished(true);
+        } else {
+          setError(data.error || 'Lỗi khi tải câu tiếp theo');
         }
-      } catch (err) {
-        console.error('Polling error:', err);
+        return;
       }
-    }, 2000);
 
-    return () => clearInterval(pollInterval);
-  }, [room?.id, currentRound, dispatch, gameFinished, waitingForNextRound, showResultTime]);
+      dispatch(setQuestionTime(data.questionTime || 30));
+      dispatch(setQuestion(data.question));
+      setCurrentRound(data.currentRound);
+      setScore(data.score);
+    } catch {
+      setError('Lỗi kết nối');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Redirect to result when game finished
   useEffect(() => {
-    if (gameFinished) {
+    if (gameFinished && roomId) {
       const timer = setTimeout(() => {
-        router.push('/result');
-      }, 2000);
+        router.push(`/result?roomId=${roomId}`);
+      }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [gameFinished, router]);
+  }, [gameFinished, roomId, router]);
 
-  if (loading) {
+  if (loading && !currentQuestion) {
     return (
       <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -190,8 +187,8 @@ export default function PlayPage() {
       <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
         <div className="text-center space-y-4">
           <p className="text-red-500">{error}</p>
-          <button
-            onClick={() => router.push('/lobby')}
+          <button 
+            onClick={() => router.push('/qr-login')}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
             Quay lại
@@ -204,10 +201,10 @@ export default function PlayPage() {
   if (gameFinished) {
     return (
       <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <h1 className="text-3xl font-bold text-green-600">Hoàn thành!</h1>
-          <p className="text-xl">Tổng điểm: <span className="font-bold text-blue-600">{score}</span></p>
-          <p className="text-sm text-gray-500 animate-pulse">Đang chuyển đến kết quả...</p>
+        <div className="text-center space-y-4">
+          <h2 className="text-2xl font-bold text-green-600">Hoàn thành!</h2>
+          <p className="text-xl">Điểm của bạn: {score}</p>
+          <div className="animate-pulse">Đang chuyển đến kết quả...</div>
         </div>
       </main>
     );
@@ -215,35 +212,24 @@ export default function PlayPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col items-center justify-center p-4 gap-4">
-      {/* Header with round info and score */}
       <div className="flex items-center justify-between w-full max-w-lg">
-        <Badge variant="outline" className="text-lg px-4 py-1">
+        <Badge variant="outline" className="text-lg">
           Câu {currentRound}/{totalRounds}
         </Badge>
-        <Badge className="text-lg px-4 py-1 bg-green-500">
-          Điểm: {score}
+        <Badge variant="secondary" className="text-lg">
+          {score} điểm
         </Badge>
       </div>
 
-      <h1 className="text-2xl font-bold text-blue-600">Đoán ca dao tục ngữ</h1>
+      <CountdownTimer />
 
-      {currentQuestion && <CountdownTimer isPaused={false} />}
+      <QuestionDisplay roomId={roomId} />
 
-      <QuestionDisplay />
-
-      {isCorrect !== null && (
+      {isCorrect !== null && showResultTime > 0 && (
         <div className="text-center space-y-2">
-          {showResultTime > 0 ? (
-            <p className="text-sm text-gray-600">
-              Xem kết quả trong <span className="font-bold text-blue-600">{showResultTime}s</span>
-            </p>
-          ) : (
-            <p className="text-sm text-gray-500 animate-pulse">
-              {currentRound < totalRounds 
-                ? 'Đang chờ chuyển câu tiếp theo...' 
-                : 'Chuyển đến kết quả...'}
-            </p>
-          )}
+          <p className="text-sm text-gray-600">
+            Câu tiếp theo trong <span className="font-bold text-blue-600">{showResultTime}s</span>
+          </p>
         </div>
       )}
     </main>

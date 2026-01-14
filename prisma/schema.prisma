@@ -81,17 +81,19 @@ model RoomPlayer {
 
 // ============ QUESTIONS & ASSIGNMENTS ============
 model Question {
-  id        String   @id @default(cuid())
-  imageUrl  String   @db.VarChar(500)
-  answer    String   @db.VarChar(255)
-  hint      String?  @db.VarChar(255)
-  category  String?  @db.VarChar(50)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  imageUrl   String   @db.VarChar(500)
+  answer     String   @db.VarChar(255)
+  hint       String?  @db.VarChar(255)
+  category   String?  @db.VarChar(50)
+  isActive   Boolean  @default(true)
+  usageCount Int      @default(0)
+  createdAt  DateTime @default(now())
   
   assignments QuestionAssignment[]
   
   @@index([isActive])
+  @@index([usageCount])
 }
 
 model QuestionAssignment {
