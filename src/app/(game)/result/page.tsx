@@ -40,7 +40,9 @@ export default function ResultPage() {
 
     const fetchResults = async () => {
       try {
-        const res = await fetch(`/api/game/results?roomId=${room.id}`);
+        const res = await fetch(`/api/game/results?roomId=${room.id}`, {
+          credentials: 'include',
+        });
         const data = await res.json();
 
         if (!res.ok) {

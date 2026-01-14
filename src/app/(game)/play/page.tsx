@@ -27,7 +27,9 @@ export default function PlayPage() {
     
     setLoading(true);
     try {
-      const res = await fetch(`/api/game/question?roomId=${room.id}`);
+      const res = await fetch(`/api/game/question?roomId=${room.id}`, {
+        credentials: 'include',
+      });
       const data = await res.json();
 
       if (!res.ok) {
@@ -43,7 +45,9 @@ export default function PlayPage() {
       
       if (data.hasAnswered) {
         // Already answered this round, check for game status
-        const roomRes = await fetch(`/api/rooms/${room.id}`);
+        const roomRes = await fetch(`/api/rooms/${room.id}`, {
+          credentials: 'include',
+        });
         const roomData = await roomRes.json();
         if (roomData.room.status === 'FINISHED') {
           setGameFinished(true);
@@ -73,6 +77,7 @@ export default function PlayPage() {
       const res = await fetch('/api/game/answer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           roomId: room.id,
           answerText: '', // Empty answer - timeout
@@ -125,7 +130,9 @@ export default function PlayPage() {
 
     const pollInterval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/game/question?roomId=${room.id}`);
+        const res = await fetch(`/api/game/question?roomId=${room.id}`, {
+          credentials: 'include',
+        });
         const data = await res.json();
         
         if (res.ok) {
@@ -141,7 +148,9 @@ export default function PlayPage() {
           }
           
           // Check if game finished
-          const roomRes = await fetch(`/api/rooms/${room.id}`);
+          const roomRes = await fetch(`/api/rooms/${room.id}`, {
+            credentials: 'include',
+          });
           const roomData = await roomRes.json();
           if (roomData.room.status === 'FINISHED') {
             setGameFinished(true);

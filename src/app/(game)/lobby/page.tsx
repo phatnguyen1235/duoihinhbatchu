@@ -44,6 +44,7 @@ export default function LobbyPage() {
       try {
         const res = await fetch('/api/rooms/join', {
           method: 'POST',
+          credentials: 'include',
         });
 
         const data = await res.json();
@@ -67,7 +68,9 @@ export default function LobbyPage() {
     if (!room?.id) return;
     
     try {
-      const res = await fetch(`/api/rooms/${room.id}`);
+      const res = await fetch(`/api/rooms/${room.id}`, {
+        credentials: 'include',
+      });
       const data = await res.json();
 
       if (res.ok) {
