@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ QR CODE & USER ============
+model QrCode {
+  id          String   @id @default(cuid())
+  code        String   @unique @db.VarChar(64)
+  maxPlays    Int      @default(1)
+  playCount   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  sessions    Session[]
+  roomPlayers RoomPlayer[]
+  
+  @@index([code])
+  @@index([isActive, playCount])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  qrCodeId  String
+  token     String   @unique @db.VarChar(255)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  qrCode    QrCode   @relation(fields: [qrCodeId], references: [id], onDelete: Cascade)
+  
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// ============ ROOM & MATCHMAKING ============
+model Room {
+  id            String     @id @default(cuid())
+  status        RoomStatus @default(WAITING)
+  maxPlayers    Int        @default(5)
+  totalRounds   Int        @default(5)
+  currentRound  Int        @default(0)
+  timeoutAt     DateTime?
+  startedAt     DateTime?
+  endedAt       DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  players     RoomPlayer[]
+  
+  @@index([status, createdAt])
+}
+
+enum RoomStatus {
+  WAITING
+  STARTING
+  PLAYING
+  FINISHED
+}
+
+model RoomPlayer {
+  id         String       @id @default(cuid())
+  roomId     String
+  qrCodeId   String
+  score      Int          @default(0)
+  isReady    Boolean      @default(false)
+  joinedAt   DateTime     @default(now())
+  
+  room       Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  qrCode     QrCode       @relation(fields: [qrCodeId], references: [id])
+  assignments QuestionAssignment[]
+  
+  @@unique([roomId, qrCodeId])
+  @@index([roomId])
+  @@index([qrCodeId])
+}
+
+// ============ QUESTIONS & ASSIGNMENTS ============
+model Question {
+  id        String   @id @default(cuid())
+  imageUrl  String   @db.VarChar(500)
+  answer    String   @db.VarChar(255)
+  hint      String?  @db.VarChar(255)
+  category  String?  @db.VarChar(50)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  
+  assignments QuestionAssignment[]
+  
+  @@index([isActive])
+}
+
+model QuestionAssignment {
+  id           String         @id @default(cuid())
+  roomPlayerId String
+  questionId   String
+  roundNumber  Int            @default(1)
+  userAnswer   String?        @db.VarChar(255)
+  isCorrect    Boolean?
+  answeredAt   DateTime?
+  timeSpent    Int?
+  createdAt    DateTime       @default(now())
+  
+  roomPlayer   RoomPlayer     @relation(fields: [roomPlayerId], references: [id], onDelete: Cascade)
+  question     Question       @relation(fields: [questionId], references: [id])
+  
+  @@unique([roomPlayerId, roundNumber])
+  @@index([roomPlayerId])
+  @@index([questionId])
+}
+
+// ============ GAME SETTINGS ============
+model GameSettings {
+  id              String   @id @default(cuid())
+  questionTime    Int      @default(30)  // seconds per question
+  waitingTime     Int      @default(60)  // seconds to wait in lobby
+  totalRounds     Int      @default(5)   // number of rounds per game
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
