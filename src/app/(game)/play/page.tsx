@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setQuestion, setQuestionTime, resetGame, setResult } from '@/store/slices/gameSlice';
@@ -9,67 +9,65 @@ import { CountdownTimer } from '@/components/game/CountdownTimer';
 import { Badge } from '@/components/ui/badge';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
+type GamePhase = 'loading' | 'playing' | 'showing_result' | 'finished' | 'error';
+
 function PlayContent() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { currentQuestion, isCorrect, timeRemaining } = useAppSelector((state) => state.game);
   
-  const [loading, setLoading] = useState(true);
+  const [phase, setPhase] = useState<GamePhase>('loading');
   const [error, setError] = useState('');
   const [currentRound, setCurrentRound] = useState(1);
   const [totalRounds, setTotalRounds] = useState(5);
   const [score, setScore] = useState(0);
-  const [gameFinished, setGameFinished] = useState(false);
   const [roomId, setRoomId] = useState<number | null>(null);
-  const [showingResult, setShowingResult] = useState(false);
-  const [resultCountdown, setResultCountdown] = useState(0);
+  const [countdown, setCountdown] = useState(0);
   
-  // Refs to prevent race conditions
-  const isLoadingNextRef = useRef(false);
-  const hasLoadedRef = useRef(false);
+  // Refs to track state
+  const hasInitialized = useRef(false);
+  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fetch current game on mount
+  // Initialize game
   useEffect(() => {
-    if (hasLoadedRef.current) return;
-    hasLoadedRef.current = true;
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
     
     const fetchGame = async () => {
-      setLoading(true);
       try {
-        const res = await fetch('/api/game/current', {
-          credentials: 'include',
-        });
-        
+        const res = await fetch('/api/game/current', { credentials: 'include' });
         const data = await res.json();
 
         if (!res.ok) {
           if (res.status === 401) {
-            router.push('/qr-login');
+            router.push('/');
             return;
           }
-          setError(`Lỗi: ${data.error || 'Không thể tải game'}`);
+          setError(data.error || 'Không thể tải game');
+          setPhase('error');
           return;
         }
 
         if (!data.question) {
           setError('Không có câu hỏi');
+          setPhase('error');
           return;
         }
 
         setRoomId(data.roomId);
-        dispatch(setQuestionTime(data.questionTime || 30));
-        dispatch(setQuestion(data.question));
         setCurrentRound(data.currentRound);
         setTotalRounds(data.totalRounds);
         setScore(data.score);
+        dispatch(setQuestionTime(data.questionTime || 30));
+        dispatch(setQuestion(data.question));
+        setPhase('playing');
         
         if (data.gameFinished) {
-          setGameFinished(true);
+          setPhase('finished');
         }
       } catch (err) {
-        setError(`Lỗi kết nối: ${err instanceof Error ? err.message : 'Unknown'}`);
-      } finally {
-        setLoading(false);
+        setError(`Lỗi: ${err instanceof Error ? err.message : 'Unknown'}`);
+        setPhase('error');
       }
     };
 
@@ -78,113 +76,120 @@ function PlayContent() {
 
   // Auto-submit when time runs out
   useEffect(() => {
-    if (timeRemaining === 0 && isCorrect === null && currentQuestion && roomId) {
-      const autoSubmit = async () => {
-        try {
-          const res = await fetch('/api/game/answer', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ roomId, answerText: '' }),
-          });
-          const data = await res.json();
-          dispatch(setResult({
-            isCorrect: false,
-            correctAnswer: data.correctAnswer,
-            scoreGained: 0,
-          }));
-        } catch (e) {
-          console.error('Auto-submit error:', e);
-        }
-      };
-      autoSubmit();
-    }
-  }, [timeRemaining, isCorrect, currentQuestion, roomId, dispatch]);
+    if (phase !== 'playing') return;
+    if (timeRemaining !== 0 || isCorrect !== null || !roomId) return;
+    
+    const autoSubmit = async () => {
+      try {
+        const res = await fetch('/api/game/answer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ roomId, answerText: '' }),
+        });
+        const data = await res.json();
+        dispatch(setResult({
+          isCorrect: false,
+          correctAnswer: data.correctAnswer,
+          scoreGained: 0,
+        }));
+      } catch (e) {
+        console.error('Auto-submit error:', e);
+      }
+    };
+    autoSubmit();
+  }, [timeRemaining, isCorrect, roomId, phase, dispatch]);
 
-  // When answer is submitted, start result countdown
+  // When user answers, switch to showing_result phase and start countdown
   useEffect(() => {
-    if (isCorrect !== null && !showingResult) {
-      setShowingResult(true);
-      setResultCountdown(3);
-    }
-  }, [isCorrect, showingResult]);
+    if (phase !== 'playing') return;
+    if (isCorrect === null) return;
+    
+    // Switch to showing result
+    setPhase('showing_result');
+    setCountdown(3);
+  }, [isCorrect, phase]);
 
-  // Result countdown timer
+  // Countdown during showing_result phase
   useEffect(() => {
-    if (resultCountdown <= 0) return;
+    if (phase !== 'showing_result') return;
+    if (countdown <= 0) return;
 
-    const timer = setTimeout(() => {
-      setResultCountdown(prev => prev - 1);
+    countdownTimerRef.current = setTimeout(() => {
+      setCountdown(prev => prev - 1);
     }, 1000);
 
-    return () => clearTimeout(timer);
-  }, [resultCountdown]);
-
-  // When countdown ends, load next question
-  useEffect(() => {
-    // Only trigger when countdown just hit 0 and we're showing result
-    if (resultCountdown === 0 && showingResult && !isLoadingNextRef.current) {
-      // Immediately mark as not showing result to prevent re-trigger
-      setShowingResult(false);
-      
-      if (currentRound >= totalRounds) {
-        setGameFinished(true);
-      } else {
-        loadNextQuestion();
+    return () => {
+      if (countdownTimerRef.current) {
+        clearTimeout(countdownTimerRef.current);
       }
-    }
-  }, [resultCountdown]); // Only depend on resultCountdown
+    };
+  }, [phase, countdown]);
 
-  const loadNextQuestion = async () => {
-    if (!roomId || isLoadingNextRef.current) return;
-    
-    isLoadingNextRef.current = true;
-    
-    try {
-      const res = await fetch('/api/game/next', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ roomId }),
-      });
+  // When countdown reaches 0 in showing_result phase, load next
+  useEffect(() => {
+    if (phase !== 'showing_result') return;
+    if (countdown !== 0) return;
+
+    // Check if game is finished
+    if (currentRound >= totalRounds) {
+      setPhase('finished');
+      return;
+    }
+
+    // Load next question
+    const loadNext = async () => {
+      if (!roomId) return;
       
-      const data = await res.json();
-      
-      if (!res.ok) {
-        if (data.gameFinished) {
-          setGameFinished(true);
-        } else {
-          setError(data.error || 'Lỗi khi tải câu tiếp theo');
+      try {
+        const res = await fetch('/api/game/next', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ roomId }),
+        });
+        
+        const data = await res.json();
+        
+        if (!res.ok) {
+          if (data.gameFinished) {
+            setPhase('finished');
+          } else {
+            setError(data.error || 'Lỗi khi tải câu tiếp theo');
+            setPhase('error');
+          }
+          return;
         }
-        isLoadingNextRef.current = false;
-        return;
+
+        // Reset and show new question
+        dispatch(resetGame());
+        dispatch(setQuestionTime(data.questionTime || 30));
+        dispatch(setQuestion(data.question));
+        setCurrentRound(data.currentRound);
+        setScore(data.score);
+        setPhase('playing');
+      } catch (err) {
+        setError(`Lỗi: ${err instanceof Error ? err.message : 'Unknown'}`);
+        setPhase('error');
       }
+    };
 
-      // Reset game state for new question
-      dispatch(resetGame());
-      dispatch(setQuestionTime(data.questionTime || 30));
-      dispatch(setQuestion(data.question));
-      setCurrentRound(data.currentRound);
-      setScore(data.score);
-      setResultCountdown(0);
-    } catch (err) {
-      setError(`Lỗi: ${err instanceof Error ? err.message : 'Unknown'}`);
-    } finally {
-      isLoadingNextRef.current = false;
-    }
-  };
+    loadNext();
+  }, [phase, countdown, currentRound, totalRounds, roomId, dispatch]);
 
-  // Redirect to result when game finished
+  // Redirect when finished
   useEffect(() => {
-    if (gameFinished && roomId) {
-      const timer = setTimeout(() => {
-        router.push(`/result?roomId=${roomId}`);
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [gameFinished, roomId, router]);
+    if (phase !== 'finished' || !roomId) return;
+    
+    const timer = setTimeout(() => {
+      router.push(`/result?roomId=${roomId}`);
+    }, 1500);
+    
+    return () => clearTimeout(timer);
+  }, [phase, roomId, router]);
 
-  if (loading && !currentQuestion) {
+  // Render based on phase
+  if (phase === 'loading') {
     return (
       <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -195,11 +200,11 @@ function PlayContent() {
     );
   }
 
-  if (error) {
+  if (phase === 'error') {
     return (
       <main className="min-h-screen bg-gradient-to-b from-red-50 to-white flex items-center justify-center p-4">
         <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full space-y-4">
-          <h2 className="text-xl font-bold text-red-600">Loi</h2>
+          <h2 className="text-xl font-bold text-red-600">Lỗi</h2>
           <pre className="bg-gray-100 p-3 rounded text-sm overflow-auto whitespace-pre-wrap">
             {error}
           </pre>
@@ -208,23 +213,23 @@ function PlayContent() {
             <p>round: {currentRound}/{totalRounds}</p>
           </div>
           <button 
-            onClick={() => router.push('/qr-login')}
+            onClick={() => router.push('/')}
             className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
-            Quay lai dang nhap
+            Quay lại trang chủ
           </button>
         </div>
       </main>
     );
   }
 
-  if (gameFinished) {
+  if (phase === 'finished') {
     return (
       <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
         <div className="text-center space-y-4">
-          <h2 className="text-2xl font-bold text-green-600">Hoan thanh!</h2>
-          <p className="text-xl">Diem cua ban: {score}</p>
-          <div className="animate-pulse">Dang chuyen den ket qua...</div>
+          <h2 className="text-2xl font-bold text-green-600">Hoàn thành!</h2>
+          <p className="text-xl">Điểm của bạn: {score}</p>
+          <div className="animate-pulse">Đang chuyển đến kết quả...</div>
         </div>
       </main>
     );
@@ -234,10 +239,10 @@ function PlayContent() {
     <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col items-center justify-center p-4 gap-4">
       <div className="flex items-center justify-between w-full max-w-lg">
         <Badge variant="outline" className="text-lg">
-          Cau {currentRound}/{totalRounds}
+          Câu {currentRound}/{totalRounds}
         </Badge>
         <Badge variant="secondary" className="text-lg">
-          {score} diem
+          {score} điểm
         </Badge>
       </div>
 
@@ -245,10 +250,10 @@ function PlayContent() {
 
       <QuestionDisplay roomId={roomId} />
 
-      {showingResult && resultCountdown > 0 && (
+      {phase === 'showing_result' && countdown > 0 && (
         <div className="text-center space-y-2">
           <p className="text-sm text-gray-600">
-            Cau tiep theo trong <span className="font-bold text-blue-600">{resultCountdown}s</span>
+            Câu tiếp theo trong <span className="font-bold text-blue-600">{countdown}s</span>
           </p>
         </div>
       )}
