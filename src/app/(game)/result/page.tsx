@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppDispatch } from '@/store/hooks';
 import { leaveRoom } from '@/store/slices/roomSlice';
@@ -24,7 +24,7 @@ interface PlayerResult {
   }[];
 }
 
-export default function ResultPage() {
+function ResultContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
@@ -119,5 +119,20 @@ export default function ResultPage() {
         Về trang chủ
       </Button>
     </main>
+  );
+}
+
+export default function ResultPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+          <span>Đang tải...</span>
+        </div>
+      </main>
+    }>
+      <ResultContent />
+    </Suspense>
   );
 }
