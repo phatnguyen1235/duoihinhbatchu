@@ -2,65 +2,69 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { signJWT, setAuthCookie } from '@/lib/auth';
 
-// --- 1. QUAN TRỌNG: ÉP SERVER KHÔNG ĐƯỢC CACHE ---
-// Giúp mỗi lần bấm "Bắt đầu" là một lần tính toán mới hoàn toàn
+// --- 1. CẤU HÌNH SERVER ---
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-// Get Vietnam time (UTC+7)
 function getVietnamTime(): Date {
     const now = new Date();
     return new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
 }
 
-// --- 2. THUẬT TOÁN TRÁO BÀI CHUYÊN NGHIỆP (Fisher-Yates Shuffle) ---
-// Tốt hơn nhiều so với .sort(() => 0.5 - Math.random())
+// Hàm tráo bài Fisher-Yates
 function shuffleArray<T>(array: T[]): T[] {
-    const newArr = [...array]; // Copy mảng để không ảnh hưởng mảng gốc
+    const newArr = [...array];
     for (let i = newArr.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [newArr[i], newArr[j]] = [newArr[j], newArr[i]]; // Hoán đổi vị trí
+        [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
     }
     return newArr;
 }
 
+// 👉 FIX 1: Định nghĩa kiểu dữ liệu cho kết quả SQL Raw
+interface RawQuestion {
+    id: number; // <--- Đổi string thành number
+    usageCount: number;
+    createdAt: Date;
+}
+
 export async function POST(request: NextRequest) {
     try {
-        // Get settings
         const settings = await prisma.gameSettings.findFirst();
         const totalRounds = settings?.totalRounds || 5;
 
-        // 1. Lấy dư ra (ví dụ 50 câu) ưu tiên câu ít người chơi
-        // Nếu 2 máy vào cùng lúc, bước này có thể trả về danh sách giống hệt nhau
-        const candidateQuestions = await prisma.question.findMany({
-            where: { isActive: true },
-            orderBy: [
-                { usageCount: 'asc' }, // Ưu tiên câu 'zin' hoặc ít dùng
-                { createdAt: 'desc' }, // Nếu bằng nhau thì lấy mới nhất
-            ],
-            take: 50,
-        });
-
-        if (candidateQuestions.length === 0) {
-            return NextResponse.json(
-                { error: 'Không có câu hỏi nào trong hệ thống' },
-                { status: 400 }
-            );
-        }
-
-        // 2. Dùng Fisher-Yates để tráo
-        // Kể cả danh sách đầu vào giống nhau, hàm này sẽ cho ra kết quả khác nhau trên mỗi Request
-        const shuffled = shuffleArray(candidateQuestions);
-
-        // 3. Cắt lấy đúng số lượng cần dùng
-        const roundCount = Math.min(totalRounds, shuffled.length);
-        const selectedQuestions = shuffled.slice(0, roundCount);
-
-        // ------------------------------------------
-
-        // Create everything in transaction
+        // --- BẮT ĐẦU GIAO DỊCH (TRANSACTION) ---
         const result = await prisma.$transaction(async (tx) => {
-            // Create a simple player record
+
+            // 👉 FIX 2: Thay <any[]> bằng <RawQuestion[]>
+            // Lúc này TypeScript sẽ hiểu kết quả trả về có .id, .usageCount...
+            const candidatesRaw = await tx.$queryRaw<RawQuestion[]>`
+                SELECT id, "usageCount", "createdAt"
+                FROM "Question"
+                WHERE "isActive" = true
+                ORDER BY "usageCount" ASC, "createdAt" DESC
+                LIMIT 50
+                FOR UPDATE
+            `;
+
+            const candidateIds = candidatesRaw.map(q => q.id);
+
+            if (candidateIds.length === 0) {
+                throw new Error('NO_QUESTIONS');
+            }
+
+            const candidateQuestions = await tx.question.findMany({
+                where: { id: { in: candidateIds } }
+            });
+
+            // 2. Tráo bài (Shuffle)
+            const shuffled = shuffleArray(candidateQuestions);
+
+            // 3. Cắt lấy số lượng cần dùng
+            const roundCount = Math.min(totalRounds, shuffled.length);
+            const selectedQuestions = shuffled.slice(0, roundCount);
+
+            // 4. Tạo dữ liệu người chơi & phòng
             const player = await tx.qrCode.create({
                 data: {
                     code: `player_${Date.now()}`,
@@ -71,7 +75,6 @@ export async function POST(request: NextRequest) {
                 },
             });
 
-            // Create room
             const room = await tx.room.create({
                 data: {
                     status: 'PLAYING',
@@ -83,7 +86,6 @@ export async function POST(request: NextRequest) {
                 },
             });
 
-            // Create room player
             const roomPlayer = await tx.roomPlayer.create({
                 data: {
                     roomId: room.id,
@@ -92,7 +94,7 @@ export async function POST(request: NextRequest) {
                 },
             });
 
-            // Create assignments
+            // 5. Gán câu hỏi
             const assignments = selectedQuestions.map((q, index) => ({
                 roomPlayerId: roomPlayer.id,
                 questionId: q.id,
@@ -101,20 +103,22 @@ export async function POST(request: NextRequest) {
 
             await tx.questionAssignment.createMany({ data: assignments });
 
-            // Update usage count
+            // 6. Cập nhật usageCount
             await tx.question.updateMany({
                 where: { id: { in: selectedQuestions.map(q => q.id) } },
                 data: { usageCount: { increment: 1 } },
             });
 
             return { room, player };
+        }, {
+            timeout: 10000,
         });
 
-        // Create JWT token
+        // --- KẾT THÚC TRANSACTION ---
+
         const token = await signJWT({ qrCodeId: result.player.id });
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-        // Create session
         await prisma.session.create({
             data: {
                 qrCodeId: result.player.id,
@@ -131,8 +135,18 @@ export async function POST(request: NextRequest) {
         setAuthCookie(response, token, expiresAt);
 
         return response;
-    } catch (error) {
+
+    } catch (error: unknown) { // 👉 FIX 3: Đổi 'any' thành 'unknown'
         console.error('Start Game Error:', error);
+
+        // 👉 FIX 4: Kiểm tra kiểu an toàn trước khi truy cập .message
+        if (error instanceof Error && error.message === 'NO_QUESTIONS') {
+            return NextResponse.json(
+                { error: 'Hết câu hỏi trong hệ thống' },
+                { status: 400 }
+            );
+        }
+
         return NextResponse.json(
             { error: 'Lỗi khi bắt đầu game' },
             { status: 500 }
