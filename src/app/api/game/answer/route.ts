@@ -4,6 +4,12 @@ import { verifyAuth } from '@/lib/auth';
 import { compareAnswers } from '@/lib/normalize';
 import { AnswerSchema } from '@/lib/validators';
 
+// Get Vietnam time (UTC+7)
+function getVietnamTime(): Date {
+  const now = new Date();
+  return new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+}
+
 export async function POST(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
@@ -71,7 +77,7 @@ export async function POST(request: NextRequest) {
         data: {
           userAnswer: answerText,
           isCorrect,
-          answeredAt: new Date(),
+          answeredAt: getVietnamTime(),
         },
       }),
       prisma.roomPlayer.update({
@@ -102,7 +108,7 @@ export async function POST(request: NextRequest) {
         // Game finished
         await prisma.room.update({
           where: { id: roomId },
-          data: { status: 'FINISHED', endedAt: new Date() },
+          data: { status: 'FINISHED', endedAt: getVietnamTime() },
         });
         gameFinished = true;
       } else {
