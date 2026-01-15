@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
-import { existsSync } from 'fs';
+import { v2 as cloudinary } from 'cloudinary';
+
+// 1. Cấu hình Cloudinary
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 export async function GET() {
     try {
@@ -23,12 +28,12 @@ export async function GET() {
 export async function POST(request: NextRequest) {
     try {
         const formData = await request.formData();
-        const image = formData.get('image') as File | null; // Cho phép null để check
+        const image = formData.get('image') as File | null;
         const answer = formData.get('answer') as string;
         const hint = formData.get('hint') as string;
         const category = formData.get('category') as string;
 
-        // 1. Validate dữ liệu đầu vào kỹ hơn
+        // Validate dữ liệu
         if (!answer) {
             return NextResponse.json(
                 { error: 'Thiếu câu trả lời' },
@@ -43,30 +48,30 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // 2. Tạo đường dẫn an toàn
-        const uploadDir = path.join(process.cwd(), 'public', 'images', 'questions');
-
-        // Tạo thư mục nếu chưa có
-        if (!existsSync(uploadDir)) {
-            await mkdir(uploadDir, { recursive: true });
-        }
-
-        // 3. Tạo tên file unique
-        const timestamp = Date.now();
-        // Lấy đuôi file an toàn, mặc định là .jpg nếu không có tên
-        const ext = image.name ? path.extname(image.name) : '.jpg';
-        const filename = `q_${timestamp}${ext}`;
-        const filepath = path.join(uploadDir, filename);
-
-        // 4. Lưu file
+        // --- BẮT ĐẦU UPLOAD LÊN CLOUDINARY ---
+        // Chuyển File thành Buffer
         const bytes = await image.arrayBuffer();
         const buffer = Buffer.from(bytes);
-        await writeFile(filepath, buffer);
 
-        // 5. Lưu DB
+        // Upload stream lên Cloudinary
+        const uploadResult: any = await new Promise((resolve, reject) => {
+            cloudinary.uploader.upload_stream(
+                {
+                    folder: 'qr-game-questions', // Gom hết vào thư mục này cho gọn
+                    resource_type: 'image',
+                },
+                (error, result) => {
+                    if (error) reject(error);
+                    else resolve(result);
+                }
+            ).end(buffer);
+        });
+        // -------------------------------------
+
+        // Lưu vào DB (Lưu link Cloudinary thay vì đường dẫn local)
         const question = await prisma.question.create({
             data: {
-                imageUrl: `/images/questions/${filename}`,
+                imageUrl: uploadResult.secure_url, // Link ảnh trên mạng
                 answer: answer.trim(),
                 hint: hint?.trim() || null,
                 category: category?.trim() || null,
@@ -76,10 +81,9 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ question }, { status: 201 });
     } catch (error) {
-        // Log lỗi chi tiết ra terminal để debug
         console.error('Create Question Error Details:', error);
         return NextResponse.json(
-            { error: 'Lỗi khi tạo câu hỏi (Xem terminal để biết chi tiết)' },
+            { error: 'Lỗi khi tạo câu hỏi: ' + (error as any).message },
             { status: 500 }
         );
     }
