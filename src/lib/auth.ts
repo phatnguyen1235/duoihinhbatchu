@@ -23,9 +23,16 @@ export async function signJWT(payload: { qrCodeId: number }): Promise<string> {
 export async function verifyJWT(token: string): Promise<JWTPayload | null> {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
-    if (typeof payload.qrCodeId === 'number') {
+    // Handle both number and string (for backward compatibility)
+    const qrCodeId = typeof payload.qrCodeId === 'number' 
+      ? payload.qrCodeId 
+      : typeof payload.qrCodeId === 'string' 
+        ? parseInt(payload.qrCodeId, 10)
+        : NaN;
+    
+    if (!isNaN(qrCodeId)) {
       return {
-        qrCodeId: payload.qrCodeId,
+        qrCodeId,
         iat: payload.iat,
         exp: payload.exp,
       };
