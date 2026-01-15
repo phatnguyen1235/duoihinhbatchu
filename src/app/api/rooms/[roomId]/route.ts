@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth';
 
-async function startRoomIfNeeded(roomId: string) {
+async function startRoomIfNeeded(roomId: number) {
   try {
     const room = await prisma.room.findUnique({
       where: { id: roomId },
@@ -43,7 +43,7 @@ async function startRoomIfNeeded(roomId: string) {
 
       // Create assignments for all rounds for each player
       // Each player gets a DIFFERENT question in the same round
-      const assignments: { roomPlayerId: string; questionId: string; roundNumber: number }[] = [];
+      const assignments: { roomPlayerId: number; questionId: number; roundNumber: number }[] = [];
       
       const numPlayers = room.players.length;
       const roundCount = Math.min(maxRounds, Math.floor(questions.length / numPlayers) || 1);
@@ -103,7 +103,8 @@ export async function GET(
       return NextResponse.json({ error: 'Chưa đăng nhập' }, { status: 401 });
     }
 
-    const { roomId } = await params;
+    const { roomId: roomIdStr } = await params;
+    const roomId = Number(roomIdStr);
 
     // Try to auto-start if timeout reached
     await startRoomIfNeeded(roomId);
