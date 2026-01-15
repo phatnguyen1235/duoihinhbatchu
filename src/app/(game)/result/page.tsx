@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 
 interface PlayerResult {
   rank: number;
-  playerId: string;
+  playerId: number;
   score: number;
   correctCount: number;
   totalAnswered: number;

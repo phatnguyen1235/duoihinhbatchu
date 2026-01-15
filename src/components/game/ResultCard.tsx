@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 
 interface PlayerResult {
   rank: number;
-  playerId: string;
+  playerId: number;
   score: number;
   correctCount: number;
   totalAnswered: number;
@@ -71,10 +71,10 @@ export function ResultCard({ results }: ResultCardProps) {
               <span className="text-xl">{getRankIcon(player.rank)}</span>
               <div>
                 <div className="font-medium">
-                  Player {player.playerId.slice(-4)}
+                  Player #{player.playerId}
                   {player.isCurrentUser && (
                     <Badge variant="secondary" className="ml-2 text-xs">
-                      Bạn
+                      Ban
                     </Badge>
                   )}
                 </div>
