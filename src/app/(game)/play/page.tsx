@@ -122,14 +122,18 @@ function PlayContent() {
 
   // When countdown ends, load next question
   useEffect(() => {
+    // Only trigger when countdown just hit 0 and we're showing result
     if (resultCountdown === 0 && showingResult && !isLoadingNextRef.current) {
+      // Immediately mark as not showing result to prevent re-trigger
+      setShowingResult(false);
+      
       if (currentRound >= totalRounds) {
         setGameFinished(true);
       } else {
         loadNextQuestion();
       }
     }
-  }, [resultCountdown, showingResult, currentRound, totalRounds]);
+  }, [resultCountdown]); // Only depend on resultCountdown
 
   const loadNextQuestion = async () => {
     if (!roomId || isLoadingNextRef.current) return;
@@ -152,6 +156,7 @@ function PlayContent() {
         } else {
           setError(data.error || 'Lỗi khi tải câu tiếp theo');
         }
+        isLoadingNextRef.current = false;
         return;
       }
 
@@ -161,7 +166,6 @@ function PlayContent() {
       dispatch(setQuestion(data.question));
       setCurrentRound(data.currentRound);
       setScore(data.score);
-      setShowingResult(false);
       setResultCountdown(0);
     } catch (err) {
       setError(`Lỗi: ${err instanceof Error ? err.message : 'Unknown'}`);
