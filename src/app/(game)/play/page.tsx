@@ -25,18 +25,32 @@ function PlayContent() {
   // Fetch current game on mount
   const fetchCurrentGame = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const res = await fetch('/api/game/current', {
         credentials: 'include',
       });
-      const data = await res.json();
+      
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        setError(`Invalid JSON response: ${text.substring(0, 200)}`);
+        return;
+      }
 
       if (!res.ok) {
         if (res.status === 401) {
           router.push('/qr-login');
           return;
         }
-        setError(data.error || 'Lỗi khi tải game');
+        setError(`API Error (${res.status}): ${data.error || JSON.stringify(data)}`);
+        return;
+      }
+
+      if (!data.question) {
+        setError(`No question in response: ${JSON.stringify(data)}`);
         return;
       }
 
@@ -51,8 +65,8 @@ function PlayContent() {
         setGameFinished(true);
       }
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : 'Lỗi kết nối';
-      setError(`fetchCurrentGame: ${errMsg}`);
+      const errMsg = err instanceof Error ? `${err.name}: ${err.message}` : 'Unknown error';
+      setError(`fetchCurrentGame failed: ${errMsg}`);
     } finally {
       setLoading(false);
     }
