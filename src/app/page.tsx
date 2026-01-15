@@ -1,8 +1,40 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 export default function HomePage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleStartGame = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/game/start', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        router.push('/play');
+      } else {
+        setError(data.error || 'Có lỗi xảy ra');
+      }
+    } catch {
+      setError('Lỗi kết nối, vui lòng thử lại');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -19,20 +51,27 @@ export default function HomePage() {
           <div className="text-center">
             <div className="text-6xl mb-4">🎮</div>
             <p className="text-sm text-gray-600">
-              Quét mã Barcode để tham gia game
-              <br />
-              hoặc nhập mã thủ công
+              Bấm nút bên dưới để bắt đầu chơi
             </p>
           </div>
 
-          <Link href="/qr-login">
-            <Button className="w-full" size="lg">
-              Quét / Nhập mã
-            </Button>
-          </Link>
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm text-center">
+              {error}
+            </div>
+          )}
+
+          <Button 
+            className="w-full" 
+            size="lg"
+            onClick={handleStartGame}
+            disabled={loading}
+          >
+            {loading ? 'Đang tải...' : 'Tham Gia'}
+          </Button>
 
           <div className="text-center text-sm text-gray-400">
-            Multiplayer • 5 người/phòng • Real-time
+            5 câu hỏi • Trả lời nhanh • Ghi điểm cao
           </div>
 
           <div className="border-t pt-4">
