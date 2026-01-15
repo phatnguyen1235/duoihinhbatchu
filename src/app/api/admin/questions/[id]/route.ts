@@ -9,7 +9,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: idStr } = await params;
+    const id = Number(idStr);
 
     const question = await prisma.question.findUnique({
       where: { id },
@@ -37,7 +38,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: idStr } = await params;
+    const id = Number(idStr);
     const contentType = request.headers.get('content-type') || '';
 
     const question = await prisma.question.findUnique({
@@ -132,7 +134,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: idStr } = await params;
+    const id = Number(idStr);
 
     const question = await prisma.question.findUnique({
       where: { id },

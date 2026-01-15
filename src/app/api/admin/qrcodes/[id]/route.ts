@@ -7,7 +7,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: idStr } = await params;
+    const id = Number(idStr);
 
     // Delete associated sessions first
     await prisma.session.deleteMany({
@@ -35,7 +36,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: idStr } = await params;
+    const id = Number(idStr);
     const body = await request.json();
     const { resetPlayCount, isActive } = body;
 
