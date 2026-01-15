@@ -104,32 +104,34 @@ function PlayContent() {
     }
   }, [isCorrect, showResultTime]);
 
-  // Countdown timer for showing result, then load next question
+  // Countdown timer for showing result
   useEffect(() => {
     if (showResultTime <= 0) return;
 
-    const timer = setInterval(() => {
-      setShowResultTime((prev) => {
-        if (prev <= 1) {
-          // Move to next round or finish
-          if (currentRound >= totalRounds) {
-            setGameFinished(true);
-          } else {
-            // Load next question
-            loadNextQuestion();
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
+    const timer = setTimeout(() => {
+      setShowResultTime((prev) => prev - 1);
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [showResultTime, currentRound, totalRounds]);
+    return () => clearTimeout(timer);
+  }, [showResultTime]);
+
+  // When countdown reaches 0, move to next question
+  const [isLoadingNext, setIsLoadingNext] = useState(false);
+  
+  useEffect(() => {
+    if (showResultTime === 0 && isCorrect !== null && !isLoadingNext && !gameFinished) {
+      if (currentRound >= totalRounds) {
+        setGameFinished(true);
+      } else {
+        loadNextQuestion();
+      }
+    }
+  }, [showResultTime, isCorrect, currentRound, totalRounds, isLoadingNext, gameFinished]);
 
   const loadNextQuestion = async () => {
-    if (!roomId) return;
+    if (!roomId || isLoadingNext) return;
     
+    setIsLoadingNext(true);
     dispatch(resetGame());
     setLoading(true);
     
@@ -161,6 +163,7 @@ function PlayContent() {
       setError(`loadNextQuestion: ${errMsg}`);
     } finally {
       setLoading(false);
+      setIsLoadingNext(false);
     }
   };
 
