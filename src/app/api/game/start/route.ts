@@ -2,12 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { signJWT, setAuthCookie } from '@/lib/auth';
 
+// Ép server không được cache để tránh lỗi lặp lại
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 function getVietnamTime(): Date {
     const now = new Date();
     return new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+}
+
+// Hàm tráo bài Fisher-Yates (Đưa hàm này quay lại)
+function shuffleArray<T>(array: T[]): T[] {
+    const newArr = [...array];
+    for (let i = newArr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+    }
+    return newArr;
 }
 
 interface RawQuestion {
@@ -23,13 +34,15 @@ export async function POST(request: NextRequest) {
 
         const result = await prisma.$transaction(async (tx) => {
 
-            // 1. LẤY CÂU HỎI + RANDOM NGAY TRONG SQL
+            // 1. LẤY CÂU HỎI + KHÓA (LOCKING)
+            // QUAN TRỌNG: Bỏ RAND() trong SQL để khóa ổn định.
+            // Sắp xếp theo usageCount tăng dần để luôn lấy câu ít người chơi nhất.
             const candidatesRaw = await tx.$queryRaw<RawQuestion[]>`
                 SELECT id, usageCount, createdAt
                 FROM Question
                 WHERE isActive = 1
-                ORDER BY usageCount ASC, RAND()
-                    LIMIT 50
+                ORDER BY usageCount ASC, id ASC
+                LIMIT 50
                 FOR UPDATE
             `;
 
@@ -44,18 +57,35 @@ export async function POST(request: NextRequest) {
                 where: { id: { in: candidateIds } }
             });
 
-            // Sắp xếp lại questionsData theo đúng thứ tự random của SQL
-            const sortedQuestions = candidateIds.map(id =>
+            // 2. LOGIC TRÁO BÀI THÔNG MINH (Smart Shuffle)
+            // Mục tiêu: Chỉ tráo những câu có usageCount thấp nhất để ưu tiên dùng chúng trước.
+
+            // Bước A: Tìm mức usage thấp nhất trong đám vừa lấy về
+            // (Vì SQL đã sort ASC nên phần tử đầu tiên luôn nhỏ nhất)
+            // Chúng ta map lại questionsData theo thứ tự của candidatesRaw để đảm bảo đúng order
+            const orderedQuestions = candidateIds.map(id =>
                 questionsData.find(q => q.id === id)!
             ).filter(Boolean);
 
-            // 👉 FIX: Tính toán roundCount ở đây
-            const roundCount = Math.min(totalRounds, sortedQuestions.length);
+            const minUsage = orderedQuestions[0].usageCount;
 
-            // 2. CẮT LẤY SỐ LƯỢNG CẦN THIẾT
-            const selectedQuestions = sortedQuestions.slice(0, roundCount);
+            // Bước B: Tách thành 2 nhóm
+            // Nhóm 1: Những câu "ngon nhất" (usageCount = minUsage)
+            const bestCandidates = orderedQuestions.filter(q => q.usageCount === minUsage);
+            // Nhóm 2: Những câu dự phòng (usageCount > minUsage)
+            const otherCandidates = orderedQuestions.filter(q => q.usageCount > minUsage);
 
-            // ... (Phần tạo Room, Player giữ nguyên) ...
+            // Bước C: Chỉ tráo ngẫu nhiên Nhóm 1
+            const shuffledBest = shuffleArray(bestCandidates);
+
+            // Bước D: Gộp lại (Ưu tiên Nhóm 1 đã tráo lên đầu)
+            const finalPool = [...shuffledBest, ...otherCandidates];
+
+            // 3. CẮT LẤY SỐ LƯỢNG CẦN THIẾT
+            const roundCount = Math.min(totalRounds, finalPool.length);
+            const selectedQuestions = finalPool.slice(0, roundCount);
+
+            // ... (Phần còn lại giữ nguyên) ...
 
             const player = await tx.qrCode.create({
                 data: {
