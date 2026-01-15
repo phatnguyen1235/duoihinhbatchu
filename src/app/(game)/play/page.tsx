@@ -7,8 +7,9 @@ import { setQuestion, setQuestionTime, resetGame, setResult } from '@/store/slic
 import { QuestionDisplay } from '@/components/game/QuestionDisplay';
 import { CountdownTimer } from '@/components/game/CountdownTimer';
 import { Badge } from '@/components/ui/badge';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
-export default function PlayPage() {
+function PlayContent() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { currentQuestion, isCorrect, timeRemaining } = useAppSelector((state) => state.game);
@@ -49,8 +50,9 @@ export default function PlayPage() {
       if (data.gameFinished) {
         setGameFinished(true);
       }
-    } catch {
-      setError('Lỗi kết nối');
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Lỗi kết nối';
+      setError(`fetchCurrentGame: ${errMsg}`);
     } finally {
       setLoading(false);
     }
@@ -154,8 +156,9 @@ export default function PlayPage() {
       dispatch(setQuestion(data.question));
       setCurrentRound(data.currentRound);
       setScore(data.score);
-    } catch {
-      setError('Lỗi kết nối');
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Lỗi kết nối';
+      setError(`loadNextQuestion: ${errMsg}`);
     } finally {
       setLoading(false);
     }
@@ -184,14 +187,22 @@ export default function PlayPage() {
 
   if (error) {
     return (
-      <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
-        <div className="text-center space-y-4">
-          <p className="text-red-500">{error}</p>
+      <main className="min-h-screen bg-gradient-to-b from-red-50 to-white flex items-center justify-center p-4">
+        <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full space-y-4">
+          <h2 className="text-xl font-bold text-red-600">Lỗi</h2>
+          <pre className="bg-gray-100 p-3 rounded text-sm overflow-auto whitespace-pre-wrap">
+            {error}
+          </pre>
+          <div className="text-xs text-gray-500">
+            <p>roomId: {roomId || 'null'}</p>
+            <p>currentRound: {currentRound}</p>
+            <p>hasQuestion: {currentQuestion ? 'yes' : 'no'}</p>
+          </div>
           <button 
             onClick={() => router.push('/qr-login')}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
-            Quay lại
+            Quay lại đăng nhập
           </button>
         </div>
       </main>
@@ -233,5 +244,13 @@ export default function PlayPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function PlayPage() {
+  return (
+    <ErrorBoundary>
+      <PlayContent />
+    </ErrorBoundary>
   );
 }
