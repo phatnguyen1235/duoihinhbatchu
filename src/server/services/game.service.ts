@@ -5,7 +5,7 @@ export class GameService {
    * Start a new game for a player immediately after scanning barcode
    * Questions are prioritized by usage count (less used = higher priority)
    */
-  async startGame(qrCodeId: string) {
+  async startGame(qrCodeId: number) {
     // Get settings
     const settings = await prisma.gameSettings.findFirst();
     const totalRounds = settings?.totalRounds || 5;
