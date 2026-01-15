@@ -39,11 +39,11 @@ export async function POST(request: NextRequest) {
             // 👉 FIX 2: Thay <any[]> bằng <RawQuestion[]>
             // Lúc này TypeScript sẽ hiểu kết quả trả về có .id, .usageCount...
             const candidatesRaw = await tx.$queryRaw<RawQuestion[]>`
-                SELECT id, "usageCount", "createdAt"
-                FROM "Question"
-                WHERE "isActive" = true
-                ORDER BY "usageCount" ASC, "createdAt" DESC
-                LIMIT 50
+                SELECT id, usageCount, createdAt
+                FROM Question
+                WHERE isActive = 1
+                ORDER BY usageCount ASC, createdAt DESC
+                    LIMIT 50
                 FOR UPDATE
             `;
 
