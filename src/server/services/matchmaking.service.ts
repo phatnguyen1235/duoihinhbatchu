@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client';
 const ROOM_SIZE = 5;
 
 export class MatchmakingService {
-  async joinRoom(qrCodeId: string) {
+  async joinRoom(qrCodeId: number) {
     return prisma.$transaction(async (tx) => {
       const existingPlayer = await tx.roomPlayer.findFirst({
         where: {
@@ -69,7 +69,7 @@ export class MatchmakingService {
     });
   }
 
-  async startRoom(tx: Prisma.TransactionClient, roomId: string) {
+  async startRoom(tx: Prisma.TransactionClient, roomId: number) {
     try {
       const room = await tx.room.findUnique({
         where: { id: roomId },
@@ -99,7 +99,7 @@ export class MatchmakingService {
 
       // Create assignments for all rounds for each player
       // Each player gets a DIFFERENT question in the same round
-      const assignments: { roomPlayerId: string; questionId: string; roundNumber: number }[] = [];
+      const assignments: { roomPlayerId: number; questionId: number; roundNumber: number }[] = [];
       
       for (let round = 1; round <= roundCount; round++) {
         // Shuffle questions for each round to add more randomness
