@@ -6,7 +6,10 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
     if (!auth) {
-      return NextResponse.json({ error: 'Chưa đăng nhập' }, { status: 401 });
+      // Clear invalid cookie
+      const response = NextResponse.json({ error: 'Chưa đăng nhập hoặc phiên hết hạn' }, { status: 401 });
+      response.cookies.delete('auth-token');
+      return response;
     }
 
     // Find player's active room
