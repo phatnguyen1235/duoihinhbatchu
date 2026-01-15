@@ -15,6 +15,7 @@ export default function QrLoginPage() {
   const [cameraError, setCameraError] = useState('');
   const scannerRef = useRef<HTMLDivElement>(null);
   const html5QrCodeRef = useRef<import('html5-qrcode').Html5Qrcode | null>(null);
+  const isProcessingRef = useRef(false); // Prevent multiple scan processing
 
   const handleSubmit = async (codeToSubmit?: string) => {
     const submitCode = codeToSubmit || code;
@@ -101,23 +102,40 @@ export default function QrLoginPage() {
             aspectRatio: 2.0,
           },
           async (decodedText) => {
-            if (!isMounted) return;
+            // Prevent multiple processing
+            if (!isMounted || isProcessingRef.current) return;
+            isProcessingRef.current = true;
+            
             setCode(decodedText);
             setScanning(false);
-            // Submit directly here
             setLoading(true);
+            
+            // Stop scanner first
+            try {
+              if (html5QrCode) {
+                await html5QrCode.stop();
+              }
+            } catch {
+              // Ignore stop errors
+            }
+            
+            // Submit with delay to ensure cookie is set
             try {
               const res = await fetch(`/api/auth/qr?code=${encodeURIComponent(decodedText)}`, {
                 credentials: 'include',
               });
               const data = await res.json();
               if (res.ok && data.success) {
+                // Wait a bit for cookie to be set properly
+                await new Promise(resolve => setTimeout(resolve, 300));
                 router.push('/play');
               } else {
                 setError(data.error || 'Có lỗi xảy ra');
+                isProcessingRef.current = false;
               }
             } catch {
               setError('Lỗi kết nối');
+              isProcessingRef.current = false;
             } finally {
               setLoading(false);
             }
