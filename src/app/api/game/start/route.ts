@@ -147,8 +147,10 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        const errorMessage = error instanceof Error ? error.message : 'Lỗi không xác định';
+
         return NextResponse.json(
-            { error: 'Lỗi khi bắt đầu game' },
+            { error: `Lỗi Server: ${errorMessage}` },
             { status: 500 }
         );
     }
