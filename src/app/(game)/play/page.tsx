@@ -20,7 +20,7 @@ function PlayContent() {
   const [score, setScore] = useState(0);
   const [gameFinished, setGameFinished] = useState(false);
   const [showResultTime, setShowResultTime] = useState(0);
-  const [roomId, setRoomId] = useState<string | null>(null);
+  const [roomId, setRoomId] = useState<number | null>(null);
 
   // Fetch current game on mount
   const fetchCurrentGame = useCallback(async () => {

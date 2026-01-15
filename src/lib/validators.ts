@@ -5,16 +5,16 @@ export const QrCodeSchema = z.object({
 });
 
 export const JoinRoomSchema = z.object({
-  qrCodeId: z.string().cuid(),
+  qrCodeId: z.number().int().positive(),
 });
 
 export const AnswerSchema = z.object({
-  roomId: z.string().cuid(),
-  answerText: z.string().min(1).max(255),
+  roomId: z.number().int().positive(),
+  answerText: z.string().max(255),
 });
 
 export const RoomIdSchema = z.object({
-  roomId: z.string().cuid(),
+  roomId: z.number().int().positive(),
 });
 
 export type QrCodeInput = z.infer<typeof QrCodeSchema>;

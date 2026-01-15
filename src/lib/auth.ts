@@ -7,12 +7,12 @@ const JWT_SECRET = new TextEncoder().encode(
 );
 
 export interface JWTPayload {
-  qrCodeId: string;
+  qrCodeId: number;
   iat?: number;
   exp?: number;
 }
 
-export async function signJWT(payload: { qrCodeId: string }): Promise<string> {
+export async function signJWT(payload: { qrCodeId: number }): Promise<string> {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
@@ -23,7 +23,7 @@ export async function signJWT(payload: { qrCodeId: string }): Promise<string> {
 export async function verifyJWT(token: string): Promise<JWTPayload | null> {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
-    if (typeof payload.qrCodeId === 'string') {
+    if (typeof payload.qrCodeId === 'number') {
       return {
         qrCodeId: payload.qrCodeId,
         iat: payload.iat,

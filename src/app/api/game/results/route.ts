@@ -10,9 +10,10 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const roomId = searchParams.get('roomId');
+    const roomIdParam = searchParams.get('roomId');
+    const roomId = Number(roomIdParam);
 
-    if (!roomId) {
+    if (!roomId || isNaN(roomId)) {
       return NextResponse.json({ error: 'Thiếu roomId' }, { status: 400 });
     }
 

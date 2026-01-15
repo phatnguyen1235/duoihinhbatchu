@@ -10,9 +10,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { roomId } = body;
+    const roomId = Number(body.roomId);
 
-    if (!roomId) {
+    if (!roomId || isNaN(roomId)) {
       return NextResponse.json({ error: 'Thiếu roomId' }, { status: 400 });
     }
 

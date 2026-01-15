@@ -9,7 +9,7 @@ import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { setUserAnswer, setSubmitting, setResult } from '@/store/slices/gameSlice';
 
 interface QuestionDisplayProps {
-  roomId?: string | null;
+  roomId?: number | null;
 }
 
 export function QuestionDisplay({ roomId: propRoomId }: QuestionDisplayProps) {

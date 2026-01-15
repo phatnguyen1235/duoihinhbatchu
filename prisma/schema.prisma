@@ -9,7 +9,7 @@ datasource db {
 
 // ============ QR CODE & USER ============
 model QrCode {
-  id          String   @id @default(cuid())
+  id          Int      @id @default(autoincrement())
   code        String   @unique @db.VarChar(64)
   maxPlays    Int      @default(1)
   playCount   Int      @default(0)
@@ -25,8 +25,8 @@ model QrCode {
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  qrCodeId  String
+  id        Int      @id @default(autoincrement())
+  qrCodeId  Int
   token     String   @unique @db.VarChar(255)
   expiresAt DateTime
   createdAt DateTime @default(now())
@@ -39,11 +39,11 @@ model Session {
 
 // ============ ROOM & MATCHMAKING ============
 model Room {
-  id            String     @id @default(cuid())
+  id            Int        @id @default(autoincrement())
   status        RoomStatus @default(WAITING)
   maxPlayers    Int        @default(5)
   totalRounds   Int        @default(5)
-  currentRound  Int        @default(0)
+  currentRound  Int        @default(1)
   timeoutAt     DateTime?
   startedAt     DateTime?
   endedAt       DateTime?
@@ -63,9 +63,9 @@ enum RoomStatus {
 }
 
 model RoomPlayer {
-  id         String       @id @default(cuid())
-  roomId     String
-  qrCodeId   String
+  id         Int          @id @default(autoincrement())
+  roomId     Int
+  qrCodeId   Int
   score      Int          @default(0)
   isReady    Boolean      @default(false)
   joinedAt   DateTime     @default(now())
@@ -81,7 +81,7 @@ model RoomPlayer {
 
 // ============ QUESTIONS & ASSIGNMENTS ============
 model Question {
-  id         String   @id @default(cuid())
+  id         Int      @id @default(autoincrement())
   imageUrl   String   @db.VarChar(500)
   answer     String   @db.VarChar(255)
   hint       String?  @db.VarChar(255)
@@ -97,9 +97,9 @@ model Question {
 }
 
 model QuestionAssignment {
-  id           String         @id @default(cuid())
-  roomPlayerId String
-  questionId   String
+  id           Int            @id @default(autoincrement())
+  roomPlayerId Int
+  questionId   Int
   roundNumber  Int            @default(1)
   userAnswer   String?        @db.VarChar(255)
   isCorrect    Boolean?
@@ -117,7 +117,7 @@ model QuestionAssignment {
 
 // ============ GAME SETTINGS ============
 model GameSettings {
-  id              String   @id @default(cuid())
+  id              Int      @id @default(autoincrement())
   questionTime    Int      @default(30)  // seconds per question
   waitingTime     Int      @default(60)  // seconds to wait in lobby
   totalRounds     Int      @default(5)   // number of rounds per game

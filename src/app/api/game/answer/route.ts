@@ -12,7 +12,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const parsed = AnswerSchema.safeParse(body);
+    const parsed = AnswerSchema.safeParse({
+      ...body,
+      roomId: Number(body.roomId),
+    });
 
     if (!parsed.success) {
       return NextResponse.json(
