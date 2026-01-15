@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setQuestion, setQuestionTime, resetGame, setResult } from '@/store/slices/gameSlice';
@@ -13,141 +13,128 @@ function PlayContent() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { currentQuestion, isCorrect, timeRemaining } = useAppSelector((state) => state.game);
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentRound, setCurrentRound] = useState(1);
   const [totalRounds, setTotalRounds] = useState(5);
   const [score, setScore] = useState(0);
   const [gameFinished, setGameFinished] = useState(false);
-  const [showResultTime, setShowResultTime] = useState(0);
   const [roomId, setRoomId] = useState<number | null>(null);
+  const [showingResult, setShowingResult] = useState(false);
+  const [resultCountdown, setResultCountdown] = useState(0);
+  
+  // Refs to prevent race conditions
+  const isLoadingNextRef = useRef(false);
+  const hasLoadedRef = useRef(false);
 
   // Fetch current game on mount
-  const fetchCurrentGame = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch('/api/game/current', {
-        credentials: 'include',
-      });
-      
-      const text = await res.text();
-      let data;
+  useEffect(() => {
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+    
+    const fetchGame = async () => {
+      setLoading(true);
       try {
-        data = JSON.parse(text);
-      } catch {
-        setError(`Invalid JSON response: ${text.substring(0, 200)}`);
-        return;
-      }
+        const res = await fetch('/api/game/current', {
+          credentials: 'include',
+        });
+        
+        const data = await res.json();
 
-      if (!res.ok) {
-        if (res.status === 401) {
-          router.push('/qr-login');
+        if (!res.ok) {
+          if (res.status === 401) {
+            router.push('/qr-login');
+            return;
+          }
+          setError(`Lỗi: ${data.error || 'Không thể tải game'}`);
           return;
         }
-        setError(`API Error (${res.status}): ${data.error || JSON.stringify(data)}`);
-        return;
-      }
 
-      if (!data.question) {
-        setError(`No question in response: ${JSON.stringify(data)}`);
-        return;
-      }
+        if (!data.question) {
+          setError('Không có câu hỏi');
+          return;
+        }
 
-      setRoomId(data.roomId);
-      dispatch(setQuestionTime(data.questionTime || 30));
-      dispatch(setQuestion(data.question));
-      setCurrentRound(data.currentRound);
-      setTotalRounds(data.totalRounds);
-      setScore(data.score);
-      
-      if (data.gameFinished) {
-        setGameFinished(true);
+        setRoomId(data.roomId);
+        dispatch(setQuestionTime(data.questionTime || 30));
+        dispatch(setQuestion(data.question));
+        setCurrentRound(data.currentRound);
+        setTotalRounds(data.totalRounds);
+        setScore(data.score);
+        
+        if (data.gameFinished) {
+          setGameFinished(true);
+        }
+      } catch (err) {
+        setError(`Lỗi kết nối: ${err instanceof Error ? err.message : 'Unknown'}`);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      const errMsg = err instanceof Error ? `${err.name}: ${err.message}` : 'Unknown error';
-      setError(`fetchCurrentGame failed: ${errMsg}`);
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    fetchGame();
   }, [dispatch, router]);
 
-  useEffect(() => {
-    fetchCurrentGame();
-  }, [fetchCurrentGame]);
-
   // Auto-submit when time runs out
-  const autoSubmitAnswer = useCallback(async () => {
-    if (!roomId || isCorrect !== null) return;
-    
-    try {
-      const res = await fetch('/api/game/answer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          roomId,
-          answerText: '',
-        }),
-      });
-
-      const data = await res.json();
-      dispatch(
-        setResult({
-          isCorrect: false,
-          correctAnswer: data.correctAnswer,
-          scoreGained: 0,
-        })
-      );
-    } catch (error) {
-      console.error('Auto-submit error:', error);
-    }
-  }, [roomId, isCorrect, dispatch]);
-
-  // Watch for timeout
   useEffect(() => {
-    if (timeRemaining === 0 && isCorrect === null && currentQuestion) {
-      autoSubmitAnswer();
+    if (timeRemaining === 0 && isCorrect === null && currentQuestion && roomId) {
+      const autoSubmit = async () => {
+        try {
+          const res = await fetch('/api/game/answer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ roomId, answerText: '' }),
+          });
+          const data = await res.json();
+          dispatch(setResult({
+            isCorrect: false,
+            correctAnswer: data.correctAnswer,
+            scoreGained: 0,
+          }));
+        } catch (e) {
+          console.error('Auto-submit error:', e);
+        }
+      };
+      autoSubmit();
     }
-  }, [timeRemaining, isCorrect, currentQuestion, autoSubmitAnswer]);
+  }, [timeRemaining, isCorrect, currentQuestion, roomId, dispatch]);
 
-  // Start countdown when player answers
+  // When answer is submitted, start result countdown
   useEffect(() => {
-    if (isCorrect !== null && showResultTime === 0) {
-      setShowResultTime(3);
+    if (isCorrect !== null && !showingResult) {
+      setShowingResult(true);
+      setResultCountdown(3);
     }
-  }, [isCorrect, showResultTime]);
+  }, [isCorrect, showingResult]);
 
-  // Countdown timer for showing result
+  // Result countdown timer
   useEffect(() => {
-    if (showResultTime <= 0) return;
+    if (resultCountdown <= 0) return;
 
     const timer = setTimeout(() => {
-      setShowResultTime((prev) => prev - 1);
+      setResultCountdown(prev => prev - 1);
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [showResultTime]);
+  }, [resultCountdown]);
 
-  // When countdown reaches 0, move to next question
-  const [isLoadingNext, setIsLoadingNext] = useState(false);
-  
+  // When countdown ends, load next question
   useEffect(() => {
-    if (showResultTime === 0 && isCorrect !== null && !isLoadingNext && !gameFinished) {
+    if (resultCountdown === 0 && showingResult && !isLoadingNextRef.current) {
       if (currentRound >= totalRounds) {
         setGameFinished(true);
       } else {
         loadNextQuestion();
       }
     }
-  }, [showResultTime, isCorrect, currentRound, totalRounds, isLoadingNext, gameFinished]);
+  }, [resultCountdown, showingResult, currentRound, totalRounds]);
 
   const loadNextQuestion = async () => {
-    if (!roomId || isLoadingNext) return;
+    if (!roomId || isLoadingNextRef.current) return;
     
-    setIsLoadingNext(true);
-    dispatch(resetGame());
-    setLoading(true);
+    isLoadingNextRef.current = true;
     
     try {
       const res = await fetch('/api/game/next', {
@@ -168,16 +155,18 @@ function PlayContent() {
         return;
       }
 
+      // Reset game state for new question
+      dispatch(resetGame());
       dispatch(setQuestionTime(data.questionTime || 30));
       dispatch(setQuestion(data.question));
       setCurrentRound(data.currentRound);
       setScore(data.score);
+      setShowingResult(false);
+      setResultCountdown(0);
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : 'Lỗi kết nối';
-      setError(`loadNextQuestion: ${errMsg}`);
+      setError(`Lỗi: ${err instanceof Error ? err.message : 'Unknown'}`);
     } finally {
-      setLoading(false);
-      setIsLoadingNext(false);
+      isLoadingNextRef.current = false;
     }
   };
 
@@ -186,7 +175,7 @@ function PlayContent() {
     if (gameFinished && roomId) {
       const timer = setTimeout(() => {
         router.push(`/result?roomId=${roomId}`);
-      }, 1000);
+      }, 1500);
       return () => clearTimeout(timer);
     }
   }, [gameFinished, roomId, router]);
@@ -206,20 +195,19 @@ function PlayContent() {
     return (
       <main className="min-h-screen bg-gradient-to-b from-red-50 to-white flex items-center justify-center p-4">
         <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full space-y-4">
-          <h2 className="text-xl font-bold text-red-600">Lỗi</h2>
+          <h2 className="text-xl font-bold text-red-600">Loi</h2>
           <pre className="bg-gray-100 p-3 rounded text-sm overflow-auto whitespace-pre-wrap">
             {error}
           </pre>
           <div className="text-xs text-gray-500">
-            <p>roomId: {roomId || 'null'}</p>
-            <p>currentRound: {currentRound}</p>
-            <p>hasQuestion: {currentQuestion ? 'yes' : 'no'}</p>
+            <p>roomId: {roomId ?? 'null'}</p>
+            <p>round: {currentRound}/{totalRounds}</p>
           </div>
           <button 
             onClick={() => router.push('/qr-login')}
             className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
-            Quay lại đăng nhập
+            Quay lai dang nhap
           </button>
         </div>
       </main>
@@ -230,9 +218,9 @@ function PlayContent() {
     return (
       <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
         <div className="text-center space-y-4">
-          <h2 className="text-2xl font-bold text-green-600">Hoàn thành!</h2>
-          <p className="text-xl">Điểm của bạn: {score}</p>
-          <div className="animate-pulse">Đang chuyển đến kết quả...</div>
+          <h2 className="text-2xl font-bold text-green-600">Hoan thanh!</h2>
+          <p className="text-xl">Diem cua ban: {score}</p>
+          <div className="animate-pulse">Dang chuyen den ket qua...</div>
         </div>
       </main>
     );
@@ -242,10 +230,10 @@ function PlayContent() {
     <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col items-center justify-center p-4 gap-4">
       <div className="flex items-center justify-between w-full max-w-lg">
         <Badge variant="outline" className="text-lg">
-          Câu {currentRound}/{totalRounds}
+          Cau {currentRound}/{totalRounds}
         </Badge>
         <Badge variant="secondary" className="text-lg">
-          {score} điểm
+          {score} diem
         </Badge>
       </div>
 
@@ -253,10 +241,10 @@ function PlayContent() {
 
       <QuestionDisplay roomId={roomId} />
 
-      {isCorrect !== null && showResultTime > 0 && (
+      {showingResult && resultCountdown > 0 && (
         <div className="text-center space-y-2">
           <p className="text-sm text-gray-600">
-            Câu tiếp theo trong <span className="font-bold text-blue-600">{showResultTime}s</span>
+            Cau tiep theo trong <span className="font-bold text-blue-600">{resultCountdown}s</span>
           </p>
         </div>
       )}
