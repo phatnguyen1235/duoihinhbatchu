@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
                 SELECT id, usageCount, createdAt
                 FROM Question
                 WHERE isActive = 1
-                ORDER BY usageCount ASC, createdAt DESC
+                ORDER BY usageCount ASC, RAND() 
                     LIMIT 50
                 FOR UPDATE
             `;
