@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
           userAnswer: answerText,
           isCorrect,
           answeredAt: getVietnamTime(),
+            createdAt: getVietnamTime()
         },
       }),
       prisma.roomPlayer.update({
