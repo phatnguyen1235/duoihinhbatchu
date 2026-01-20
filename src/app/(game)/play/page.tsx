@@ -79,6 +79,8 @@ function PlayContent() {
     useEffect(() => {
         if (phase !== 'playing') return;
         if (timeRemaining !== 0 || isCorrect !== null || !roomId) return;
+        // Không auto-submit nếu đang load câu tiếp theo
+        if (isLoadingNext.current) return;
 
         const autoSubmit = async () => {
             try {
@@ -176,11 +178,16 @@ function PlayContent() {
                 }
 
                 // Reset and show new question
-                dispatch(resetGame());
+                // QUAN TRỌNG: Đặt phase='loading' TRƯỚC để các useEffect không trigger sai
+                setPhase('loading');
+                
+                // setQuestion đã tự reset isCorrect, correctAnswer, userAnswer nên KHÔNG cần resetGame()
                 dispatch(setQuestionTime(data.questionTime || 30));
                 dispatch(setQuestion(data.question));
                 setCurrentRound(data.currentRound);
                 setScore(data.score);
+                
+                // Đặt phase='playing' SAU khi đã set xong question
                 setPhase('playing');
                 isLoadingNext.current = false;
             } catch (err) {
