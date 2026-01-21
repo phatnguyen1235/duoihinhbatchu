@@ -7,6 +7,7 @@ import { setQuestion, setQuestionTime, resetGame, setResult } from '@/store/slic
 import { QuestionDisplay } from '@/components/game/QuestionDisplay';
 import { CountdownTimer } from '@/components/game/CountdownTimer';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 type GamePhase = 'loading' | 'playing' | 'showing_result' | 'finished' | 'error';
@@ -28,6 +29,19 @@ function PlayContent() {
     const hasInitialized = useRef(false);
     const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
     const isLoadingNext = useRef(false);
+
+    // Hàm thoát game
+    const handleExit = async () => {
+        if (!confirm('Bạn có chắc muốn thoát? Tiến trình chơi sẽ bị hủy.')) return;
+        
+        try {
+            await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+        } catch (e) {
+            console.error('Logout error:', e);
+        }
+        dispatch(resetGame());
+        router.push('/');
+    };
 
     // 1. Initialize game
     useEffect(() => {
@@ -88,7 +102,7 @@ function PlayContent() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ roomId, answerText: '' }),
+                    body: JSON.stringify({ roomId, answerText: '', roundNumber: currentRound }),
                 });
                 const data = await res.json();
                 dispatch(setResult({
@@ -262,6 +276,14 @@ function PlayContent() {
     return (
         <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col items-center justify-center p-4 gap-4">
             <div className="flex items-center justify-between w-full max-w-lg">
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleExit}
+                    className="text-gray-500 hover:text-red-500"
+                >
+                    Thoát
+                </Button>
                 <Badge variant="outline" className="text-lg">
                     Câu {currentRound}/{totalRounds}
                 </Badge>
@@ -272,7 +294,7 @@ function PlayContent() {
 
             <CountdownTimer />
 
-            <QuestionDisplay roomId={roomId} />
+            <QuestionDisplay roomId={roomId} currentRound={currentRound} />
 
             {phase === 'showing_result' && countdown > 0 && (
                 <div className="text-center space-y-2">

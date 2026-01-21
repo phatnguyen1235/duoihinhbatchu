@@ -50,10 +50,12 @@ export async function verifyAuth(request: NextRequest): Promise<JWTPayload | nul
 }
 
 export function setAuthCookie(response: NextResponse, token: string, expiresAt: Date) {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
   response.cookies.set('auth-token', token, {
     httpOnly: true,
-    secure: true,
-    sameSite: 'none',
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
     expires: expiresAt,
     path: '/',
   });

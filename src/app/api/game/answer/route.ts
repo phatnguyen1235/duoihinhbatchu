@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { roomId, answerText } = parsed.data;
+    const { roomId, answerText, roundNumber } = parsed.data;
 
     // Get room to know current round
     const room = await prisma.room.findUnique({
@@ -38,6 +38,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Không tìm thấy phòng' }, { status: 404 });
     }
 
+    // Ưu tiên dùng roundNumber từ client để tránh race condition
+    // Fallback về room.currentRound nếu client không gửi
+    const targetRound = roundNumber || room.currentRound;
+    
+    // DEBUG: Log để kiểm tra race condition
+    console.log(`[ANSWER] clientRound=${roundNumber}, dbRound=${room.currentRound}, targetRound=${targetRound}`);
+
     const roomPlayer = await prisma.roomPlayer.findFirst({
       where: {
         roomId,
@@ -45,7 +52,7 @@ export async function POST(request: NextRequest) {
       },
       include: {
         assignments: {
-          where: { roundNumber: room.currentRound },
+          where: { roundNumber: targetRound },
           include: { question: true },
         },
       },
@@ -62,7 +69,12 @@ export async function POST(request: NextRequest) {
 
     if (currentAssignment.answeredAt) {
       return NextResponse.json(
-        { error: 'Đã trả lời rồi', isCorrect: currentAssignment.isCorrect },
+        { 
+          error: 'Đã trả lời rồi', 
+          isCorrect: currentAssignment.isCorrect,
+          correctAnswer: currentAssignment.question.answer,
+          alreadyAnswered: true,
+        },
         { status: 400 }
       );
     }

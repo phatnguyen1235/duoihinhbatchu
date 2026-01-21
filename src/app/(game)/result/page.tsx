@@ -35,7 +35,7 @@ function ResultContent() {
 
   useEffect(() => {
     if (!roomId) {
-      router.push('/qr-login');
+      router.push('/');
       return;
     }
 
@@ -62,7 +62,13 @@ function ResultContent() {
     fetchResults();
   }, [roomId, router]);
 
-  const handleBackToHome = () => {
+  const handleBackToHome = async () => {
+    // Xóa session để người tiếp theo chơi mới
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
     dispatch(leaveRoom());
     dispatch(resetGame());
     router.push('/');

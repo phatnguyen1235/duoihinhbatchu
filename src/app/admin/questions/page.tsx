@@ -51,19 +51,7 @@ export default function AdminQuestionsPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
-    // QR Codes state
-    interface QrCode {
-        id: string;
-        code: string;
-        maxPlays: number;
-        playCount: number;
-        isActive: boolean;
-        createdAt: string;
-    }
 
-    const [qrCodes, setQrCodes] = useState<QrCode[]>([]);
-    const [newCodes, setNewCodes] = useState('');
-    const [addingCodes, setAddingCodes] = useState(false);
 
     const fetchQuestions = async () => {
         try {
@@ -93,99 +81,7 @@ export default function AdminQuestionsPage() {
         }
     };
 
-    const fetchQrCodes = async () => {
-        try {
-            const res = await fetch('/api/admin/qrcodes');
-            const data = await res.json();
-            if (res.ok) {
-                setQrCodes(data.qrCodes);
-            }
-        } catch (error) {
-            console.error('Fetch QR codes error:', error);
-        }
-    };
 
-    const handleAddCodes = async () => {
-        if (!newCodes.trim()) return;
-
-        setAddingCodes(true);
-        try {
-            const codes = newCodes.split('\n').map(c => c.trim()).filter(c => c);
-            const res = await fetch('/api/admin/qrcodes', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({codes, maxPlays: 1}),
-            });
-
-            const data = await res.json();
-            if (res.ok) {
-                alert(data.message);
-                setNewCodes('');
-                fetchQrCodes();
-            } else {
-                alert(data.error);
-            }
-        } catch (error) {
-            console.error('Add codes error:', error);
-            alert('Lỗi khi thêm mã');
-        } finally {
-            setAddingCodes(false);
-        }
-    };
-
-    const handleDeleteCode = async (id: string) => {
-        if (!confirm('Xác nhận xóa mã này?')) return;
-
-        try {
-            const res = await fetch(`/api/admin/qrcodes/${id}`, {
-                method: 'DELETE',
-            });
-
-            if (res.ok) {
-                fetchQrCodes();
-            } else {
-                alert('Lỗi khi xóa mã');
-            }
-        } catch (error) {
-            console.error('Delete code error:', error);
-        }
-    };
-
-    const handleResetCode = async (id: string) => {
-        try {
-            const res = await fetch(`/api/admin/qrcodes/${id}`, {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({resetPlayCount: true}),
-            });
-
-            if (res.ok) {
-                fetchQrCodes();
-            } else {
-                alert('Lỗi khi reset mã');
-            }
-        } catch (error) {
-            console.error('Reset code error:', error);
-        }
-    };
-
-    const handleDeleteAllUnused = async () => {
-        if (!confirm('Xác nhận xóa tất cả mã chưa sử dụng?')) return;
-
-        try {
-            const res = await fetch('/api/admin/qrcodes', {
-                method: 'DELETE',
-            });
-
-            const data = await res.json();
-            if (res.ok) {
-                alert(data.message);
-                fetchQrCodes();
-            }
-        } catch (error) {
-            console.error('Delete codes error:', error);
-        }
-    };
 
     const handleSaveSettings = async () => {
         setSavingSettings(true);
@@ -225,7 +121,6 @@ export default function AdminQuestionsPage() {
         if (isAuthenticated) {
             fetchQuestions();
             fetchSettings();
-            fetchQrCodes();
         }
     }, [isAuthenticated]);
 

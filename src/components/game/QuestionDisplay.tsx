@@ -10,9 +10,10 @@ import { setUserAnswer, setSubmitting, setResult } from '@/store/slices/gameSlic
 
 interface QuestionDisplayProps {
   roomId?: number | null;
+  currentRound?: number;
 }
 
-export function QuestionDisplay({ roomId: propRoomId }: QuestionDisplayProps) {
+export function QuestionDisplay({ roomId: propRoomId, currentRound }: QuestionDisplayProps) {
   const dispatch = useAppDispatch();
   const { currentQuestion, userAnswer, isCorrect, correctAnswer, isSubmitting, scoreGained } =
     useAppSelector((state) => state.game);
@@ -33,15 +34,18 @@ export function QuestionDisplay({ roomId: propRoomId }: QuestionDisplayProps) {
         body: JSON.stringify({
           roomId,
           answerText: userAnswer,
+          roundNumber: currentRound,
         }),
       });
 
       const data = await res.json();
+      
+      // Xử lý cả trường hợp đã trả lời rồi (status 400 với alreadyAnswered)
       dispatch(
         setResult({
-          isCorrect: data.isCorrect,
+          isCorrect: data.isCorrect ?? false,
           correctAnswer: data.correctAnswer,
-          scoreGained: data.scoreGained,
+          scoreGained: data.scoreGained ?? 0,
         })
       );
     } catch (error) {

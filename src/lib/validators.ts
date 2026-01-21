@@ -11,6 +11,7 @@ export const JoinRoomSchema = z.object({
 export const AnswerSchema = z.object({
   roomId: z.coerce.number().int().positive(),
   answerText: z.string().max(255),
+  roundNumber: z.coerce.number().int().positive().optional(),
 });
 
 export const RoomIdSchema = z.object({
