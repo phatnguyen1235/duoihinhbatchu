@@ -23,6 +23,10 @@ const playfair = Playfair_Display({
 export const metadata: Metadata = {
     title: "Đuổi Hình Bắt Chữ - Tết 2026",
     description: "Vui Xuân Bính Ngọ",
+    // 👇 Thêm đoạn này vào để nhận logo Lixco làm favicon
+    icons: {
+        icon: '/logo/lixco-logo-1.svg',
+    },
 };
 
 export default function RootLayout({
