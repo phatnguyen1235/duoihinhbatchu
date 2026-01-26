@@ -41,8 +41,41 @@ export default function HomePage() {
             <Card className="w-full max-w-md shadow-2xl border-4 border-[#ffcc00] bg-white">
                 <CardHeader className="text-center pb-2">
                     {/* Tiêu đề giữ nguyên nhưng đổi màu đỏ */}
-                    <CardTitle className="text-3xl font-bold text-[#d32f2f] uppercase drop-shadow-sm">
-                        Đuổi Hình Bắt Chữ
+                    {/* Nhớ import Image ở đầu file: import Image from 'next/image'; */}
+
+                    <CardTitle className="flex items-center justify-center gap-3 py-4">
+                        {/* 🌸 Hoa trái */}
+                        <span className="text-3xl animate-bounce-slow pt-2">🧧</span>
+
+                        {/* 👇 Khối chữ chia 2 dòng */}
+                        <div className="flex flex-col items-center justify-center">
+
+                            {/* Dòng 1: ĐUỔI HÌNH */}
+                            <span
+                                className="text-4xl font-extrabold text-[#d32f2f] uppercase leading-none tracking-wider"
+                                style={{
+                                    textShadow: '2px 2px 0 #ffcc00, 4px 4px 0 #990000',
+                                    WebkitTextStroke: '1px #ffcc00'
+                                }}
+                            >
+      ĐUỔI HÌNH
+    </span>
+
+                            {/* Dòng 2: BẮT CHỮ (Thêm chút margin top để tách dòng) */}
+                            <span
+                                className="text-4xl font-extrabold text-[#d32f2f] uppercase leading-none tracking-wider mt-2"
+                                style={{
+                                    textShadow: '2px 2px 0 #ffcc00, 4px 4px 0 #990000',
+                                    WebkitTextStroke: '1px #ffcc00'
+                                }}
+                            >
+      BẮT CHỮ
+    </span>
+
+                        </div>
+
+                        {/* 🌸 Hoa phải (Lật ngược cho đối xứng) */}
+                        <span className="text-3xl animate-bounce-slow scale-x-[-1] pt-2">🧧</span>
                     </CardTitle>
                 </CardHeader>
 
