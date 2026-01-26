@@ -20,13 +20,35 @@ const playfair = Playfair_Display({
     weight: ["700"], // Dùng nét đậm cho rõ
 });
 
+// src/app/layout.tsx
+
 export const metadata: Metadata = {
     title: "Đuổi Hình Bắt Chữ - Tết 2026",
     description: "Vui Xuân Bính Ngọ",
-    // 👇 Thêm đoạn này vào để nhận logo Lixco làm favicon
     icons: {
-        icon: '/logo/lixco-logo-1.svg',
+        // 1. Icon chính cho trình duyệt (Chrome trên Lenovo ưu tiên cái này)
+        // Thêm type và sizes="any" để nó hiểu đây là Vector
+        icon: [
+            { url: '/logo/lixco-logo-1.svg', type: 'image/svg+xml', sizes: 'any' }
+        ],
+
+        // 2. Shortcut (cho các trình duyệt cũ hơn)
+        shortcut: '/logo/lixco-logo-1.svg',
+
+        // 3. Apple Touch Icon (Cho iPad/iPhone - giữ nguyên)
+        apple: '/logo/lixco-logo-1.svg',
+
+        // 4. (Quan trọng cho Android) Khai báo thêm mục 'other' này để ép nó nhận
+        other: [
+            {
+                rel: 'icon',
+                type: 'image/svg+xml',
+                url: '/logo/lixco-logo-1.svg',
+            },
+        ],
     },
+    // Thêm dòng này để khi "Add to Home Screen" trên Android nó hiện tên app đẹp hơn
+    manifest: '/manifest.json',
 };
 
 export default function RootLayout({
@@ -52,7 +74,7 @@ export default function RootLayout({
             {/* ========================================================= */}
 
             {/* --- TRÁI: CHÚC TẾT ĐẾN TRĂM ĐIỀU NHƯ Ý --- */}
-            <div className="fixed top-14 left-2 lg:left-8 z-40 hidden md:flex flex-col items-center animate-swing origin-top">
+            <div className="fixed top-20 left-2 lg:left-8 z-0 hidden md:flex flex-col items-center animate-swing origin-top">
                 <div className="h-8 w-1 bg-[#ffcc00]"></div>
                 <div className="h-3 w-3 rounded-full bg-[#ffcc00] -mt-1"></div>
 
@@ -77,7 +99,7 @@ export default function RootLayout({
 
             {/* --- PHẢI: MỪNG XUÂN SANG VẠN SỰ THÀNH CÔNG --- */}
             <div
-                className="fixed top-14 right-2 lg:right-8 z-40 hidden md:flex flex-col items-center animate-swing origin-top"
+                className="fixed top-20 right-2 lg:right-8 z-0 hidden md:flex flex-col items-center animate-swing origin-top"
                 style={{ animationDelay: "1s" }}
             >
                 <div className="h-8 w-1 bg-[#ffcc00]"></div>
