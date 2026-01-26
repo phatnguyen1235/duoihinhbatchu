@@ -114,7 +114,20 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+.bg-tet-pattern {
+    background-color: #e11d21;
+    background-image: url('../../public/images/ele/bg_pattern_tet.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
 
+    /* Thiết lập chiều cao/rộng full màn hình thiết bị */
+    min-height: 100dvh; /* Dùng dvh để chuẩn trên mobile (tránh bị thanh địa chỉ che) */
+    width: 100vw;
+
+    /* Cố định layout không cho scroll lung tung */
+    overflow-y: auto;
+}
 @layer base {
   * {
     @apply border-border outline-ring/50;
