@@ -56,8 +56,8 @@ export default function HomePage() {
                             <li className="flex items-start gap-2">
                                 <span className="text-lg leading-none">🌸</span>
                                 <span>
-            Mỗi người chỉ có <strong>01 cơ hội</strong> duy nhất. Hãy đọc thật kỹ câu hỏi và trả lời cẩn thận.
-          </span>
+      Mỗi người chỉ có <strong>01 cơ hội</strong> duy nhất. Hãy nhìn thật kỹ các ký tự, icon,...và gõ câu trả lời cẩn thận đầy đủ dấu câu.
+    </span>
                             </li>
                             <li className="flex items-start gap-2">
                                 <span className="text-lg leading-none">🌸</span>
