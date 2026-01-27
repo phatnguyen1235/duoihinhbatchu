@@ -42,14 +42,12 @@ export default function HomePage() {
             <Card className="w-full max-w-md md:max-w-3xl shadow-2xl border-4 border-[#ffcc00] bg-white transform transition-all">
                 <CardHeader className="text-center pb-2">
 
-                    <CardTitle className="flex items-center justify-between gap-2 md:gap-4 py-6 w-full px-2">
-                        {/* 🧧 Bao lì xì TRÁI */}
-                        <span className="text-3xl md:text-5xl animate-bounce-slow pt-2 shrink-0">🧧</span>
-
-                        {/* 👇 KHUNG ẢNH "THÔNG MINH" 👇 */}
-                        {/* flex-1: Tự động phình to hết mức có thể trong khoảng trống ở giữa */}
-                        {/* h-28 md:h-52: Tăng chiều cao lên để ảnh có không gian bung ra (object-contain sẽ giữ tỉ lệ) */}
-                        <div className="relative flex-1 h-28 md:h-52 hover:scale-105 transition-transform duration-300 ease-in-out">
+                    <CardTitle className="flex items-center justify-center py-6 w-full px-2">
+                        {/* 👇 KHUNG ẢNH "SIÊU TO KHỔNG LỒ" 👇 */}
+                        {/* 1. Xóa flex-1, thay bằng w-full để nó chiếm hết bề ngang
+       2. Tăng h-28 -> h-36 (mobile) và h-52 -> h-64 hoặc h-72 (PC) để ảnh bung lụa
+    */}
+                        <div className="relative w-full h-36 md:h-64 hover:scale-105 transition-transform duration-300 ease-in-out">
                             <Image
                                 src="/images/ele/title_duoi_hinh_bat_chu.png"
                                 alt="Đuổi Hình Bắt Chữ"
@@ -58,9 +56,6 @@ export default function HomePage() {
                                 priority
                             />
                         </div>
-
-                        {/* 🧧 Bao lì xì PHẢI */}
-                        <span className="text-3xl md:text-5xl animate-bounce-slow scale-x-[-1] pt-2 shrink-0">🧧</span>
                     </CardTitle>
                 </CardHeader>
 
