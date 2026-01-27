@@ -5,7 +5,7 @@ import {useRouter} from 'next/navigation';
 import Link from 'next/link';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
-
+import Image from 'next/image';
 export default function HomePage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
@@ -42,37 +42,23 @@ export default function HomePage() {
             <Card className="w-full max-w-md md:max-w-3xl shadow-2xl border-4 border-[#ffcc00] bg-white transform transition-all">
                 <CardHeader className="text-center pb-2">
 
-                    <CardTitle className="flex items-center justify-center gap-3 md:gap-5 py-4 md:py-6">
-                        {/* 🌸 Icon to lên trên tablet */}
-                        <span className="text-3xl md:text-5xl animate-bounce-slow pt-2">🧧</span>
+                    <CardTitle className="flex items-center justify-center gap-2 md:gap-8 py-6">
+                        {/* 🧧 Bao lì xì TRÁI */}
+                        <span className="text-3xl md:text-5xl animate-bounce-slow pt-4">🧧</span>
 
-                        <div className="flex flex-col items-center justify-center">
-
-                            {/* Dòng 1: ĐUỔI HÌNH - Tăng size chữ từ 4xl -> 6xl trên Tablet */}
-                            <span
-                                className="text-4xl md:text-6xl font-extrabold text-[#d32f2f] uppercase leading-none tracking-wider"
-                                style={{
-                                    textShadow: '2px 2px 0 #ffcc00, 4px 4px 0 #990000',
-                                    WebkitTextStroke: '1px #ffcc00'
-                                }}
-                            >
-                              ĐUỔI HÌNH
-                            </span>
-
-                            {/* Dòng 2: BẮT CHỮ */}
-                            <span
-                                className="text-4xl md:text-6xl font-extrabold text-[#d32f2f] uppercase leading-none tracking-wider mt-2 md:mt-4"
-                                style={{
-                                    textShadow: '2px 2px 0 #ffcc00, 4px 4px 0 #990000',
-                                    WebkitTextStroke: '1px #ffcc00'
-                                }}
-                            >
-                              BẮT CHỮ
-                            </span>
-
+                        {/* 👇 THAY KHỐI CHỮ CŨ BẰNG ẢNH NÀY */}
+                        <div className="relative w-72 h-32 md:w-[500px] md:h-48 hover:scale-105 transition-transform duration-300 ease-in-out">
+                            <Image
+                                src="/images/ele/title_duoi_hinh_bat_chu.png"
+                                alt="Đuổi Hình Bắt Chữ"
+                                fill
+                                className="object-contain drop-shadow-2xl"
+                                priority
+                            />
                         </div>
 
-                        <span className="text-3xl md:text-5xl animate-bounce-slow scale-x-[-1] pt-2">🧧</span>
+                        {/* 🧧 Bao lì xì PHẢI */}
+                        <span className="text-3xl md:text-5xl animate-bounce-slow scale-x-[-1] pt-4">🧧</span>
                     </CardTitle>
                 </CardHeader>
 
