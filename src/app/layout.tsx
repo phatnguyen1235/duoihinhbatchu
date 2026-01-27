@@ -48,7 +48,7 @@ export const metadata: Metadata = {
         ],
     },
     // Thêm dòng này để khi "Add to Home Screen" trên Android nó hiện tên app đẹp hơn
-    manifest: '/manifest.json',
+
 };
 
 export default function RootLayout({
