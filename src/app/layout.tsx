@@ -26,8 +26,7 @@ export const metadata: Metadata = {
     title: "Đuổi Hình Bắt Chữ - Tết 2026",
     description: "Vui Xuân Bính Ngọ",
     icons: {
-        // 1. Icon chính cho trình duyệt (Chrome trên Lenovo ưu tiên cái này)
-        // Thêm type và sizes="any" để nó hiểu đây là Vector
+
         icon: [
             { url: '/logo/lixco-logo-1.svg', type: 'image/svg+xml', sizes: 'any' }
         ],
