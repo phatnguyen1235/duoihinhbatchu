@@ -144,10 +144,10 @@ function PlayContent() {
         if (countdown !== 0) return;
         if (isLoadingNext.current) return;
 
-        if (currentRound >= totalRounds) {
-            setTimeout(() => setPhase('finished'), 0);
-            return;
-        }
+        // if (currentRound >= totalRounds) {
+        //     setTimeout(() => setPhase('finished'), 0);
+        //     return;
+        // }
 
         const loadNext = async () => {
             if (!roomId) return;
@@ -177,7 +177,12 @@ function PlayContent() {
                     isLoadingNext.current = false;
                     return;
                 }
-
+                if (data.gameFinished) {
+                    setScore(data.score); // Cập nhật điểm chuẩn lần cuối
+                    setPhase('finished'); // Rồi mới cho nghỉ
+                    isLoadingNext.current = false;
+                    return;
+                }
                 setPhase('loading');
                 dispatch(setQuestionTime(data.questionTime || 30));
                 dispatch(setQuestion(data.question));
